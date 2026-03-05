@@ -6,7 +6,6 @@ from datetime import date
 from openpyxl import load_workbook
 from pathlib import Path
 import argparse
-import tiktoken
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -52,7 +51,7 @@ def numeric_sort_key(chunk_id: str) -> tuple:
     parts = base.split(".")
     return tuple(int(p) for p in parts if p.isdigit())
 
-
+# Функиция загружает словарь аббревиатур из JSON-файла
 def load_abbreviations(filepath: str, logger) -> dict:
     with open(filepath, "r", encoding="utf-8") as f:
         abbreviations = json.load(f)
@@ -60,6 +59,9 @@ def load_abbreviations(filepath: str, logger) -> dict:
     return abbreviations
 
 
+# Функция загружает глоссарий терминологии из JSON и строит поисковый индекс
+# Словарь terminology хранит пары term_key → запись (full_name, aliases, definition, distinguish_from, abbreviation, search_roots)
+# search_index хранит пары full_name : term_key и abbreviation : term_key
 def load_terminology(filepath: str) -> tuple[dict, dict]:
     with open(filepath, "r", encoding="utf-8") as f:
         terminology = json.load(f)
@@ -70,7 +72,8 @@ def load_terminology(filepath: str) -> tuple[dict, dict]:
             search_index[entry["abbreviation"].lower()] = term_key
     return terminology, search_index
 
-
+# Функция проверяет, содержит ли текст хотя бы одну аббревиатуру из словаря
+# Используется для заполнения метаданных has_abbreviations
 def detect_abbreviations(text: str, abbreviations: dict) -> bool:
     for abbr in abbreviations:
         if re.search(r"(?<!\w)" + re.escape(abbr) + r"(?!\w)", text):
@@ -78,6 +81,7 @@ def detect_abbreviations(text: str, abbreviations: dict) -> bool:
     return False
 
 
+# Функция ищет в тексте аббревиатуры из словаря аббревиатур
 def find_abbreviations_in_text(text: str, abbreviations: dict) -> dict:
     found = {}
     for abbr, definition in abbreviations.items():
@@ -91,6 +95,7 @@ def find_abbreviations_in_text(text: str, abbreviations: dict) -> dict:
     return found
 
 
+# Функция ищет в тексте все термины и аббревиатуры по заданной терминологии
 def find_terms_in_text(text: str, search_index: dict,
                        terminology: dict) -> list[str]:
     text_lower = text.lower()
@@ -113,7 +118,8 @@ def find_terms_in_text(text: str, search_index: dict,
 
     return list(found)
 
-
+# Функция формирует текстовый блок с определениями терминов для добавления в системный промпт LLM
+# Возвращает пустую строку, если релевантных терминов не найдено
 def build_glossary_block(found_terms: list[str], terminology: dict) -> str:
     if not found_terms:
         return ""
@@ -127,36 +133,37 @@ def build_glossary_block(found_terms: list[str], terminology: dict) -> str:
         lines += f"\n- {name}: {entry['definition']}"
 
     return (
-        "\n\nНекоторые термины в тексте требуют раскрытия. "
-        "Если встречается термин из списка ниже — вплети его суть "
-        "одним уточняющим предложением прямо в абзац, своими словами.\n\n"
+            "\n\nНекоторые термины в тексте требуют раскрытия. "
+            "Если встречается термин из списка ниже — вплети его суть "
+            "одним уточняющим предложением прямо в абзац, своими словами.\n\n"
 
-        "Пример как делать ПРАВИЛЬНО:\n"
-        "Исходный пункт: «Формирование плановых партий — "
-        "группировка по толщине материала»\n"
-        "Определение из словаря: «Плановая партия — расчётный объект MRP: "
-        "несколько потребностей в одинаковых ДСЕ объединяются в одну партию»\n"
-        "Результат: «При формировании плановых партий — расчётных объектов MRP, "
-        "объединяющих потребности в одинаковых ДСЕ — система поддерживает "
-        "группировку по технологическому критерию толщины материала.»\n\n"
+            "Пример как делать ПРАВИЛЬНО:\n"
+            "Исходный пункт: «Формирование плановых партий — "
+            "группировка по толщине материала»\n"
+            "Определение из словаря: «Плановая партия — расчётный объект MRP: "
+            "несколько потребностей в одинаковых ДСЕ объединяются в одну партию»\n"
+            "Результат: «При формировании плановых партий — расчётных объектов MRP, "
+            "объединяющих потребности в одинаковых ДСЕ — система поддерживает "
+            "группировку по технологическому критерию толщины материала.»\n\n"
 
-        "Пример как делать НЕПРАВИЛЬНО:\n"
-        "Результат: «При формировании плановых партий система поддерживает "
-        "группировку по толщине материала. Плановая партия — это расчётный "
-        "объект MRP, который объединяет потребности в одинаковых ДСЕ.»\n"
-        "Почему плохо: определение вынесено отдельным предложением в конец, "
-        "а не вплетено в контекст.\n\n"
+            "Пример как делать НЕПРАВИЛЬНО:\n"
+            "Результат: «При формировании плановых партий система поддерживает "
+            "группировку по толщине материала. Плановая партия — это расчётный "
+            "объект MRP, который объединяет потребности в одинаковых ДСЕ.»\n"
+            "Почему плохо: определение вынесено отдельным предложением в конец, "
+            "а не вплетено в контекст.\n\n"
 
-        "Термины для раскрытия:"
-        + lines
+            "Термины для раскрытия:"
+            + lines
     )
 
 
+# Функция заменяет аббревиатуры в тексте на их расшифровки
 def expand_abbreviations(text: str, abbreviations: dict) -> str:
-    # Sort by length descending so longer abbreviations match first (MRP-II before MRP)
+    # Сортируем по убыванию длины, чтобы длинные аббревиатуры искались раньше (MRP-II раньше MRP)
     for abbr in sorted(abbreviations, key=len, reverse=True):
         escaped = re.escape(abbr)
-        # Skip if already expanded: "ABBR (expansion)" pattern
+        # Пропускаем если аббревиатура уже расшифрована: паттерн "АББР (расшифровка)"
         already_expanded = re.compile(
             r"(?<!\w)" + escaped + r"\s*\([^)]*\)", re.IGNORECASE
         )
@@ -167,54 +174,57 @@ def expand_abbreviations(text: str, abbreviations: dict) -> str:
     return text
 
 
-# Fuction that creates new ChunkTree object, creates nodes and edges
+# Функция создаёт объект ChunkTree, добавляет узлы и рёбра
 def create_chunk_tree(ws, logger):
     new_chunk_tree = ChunkTree()
+    row_map = {}
 
     last_point = ""
-    for i in tuple(ws.values):
-
-        #Skip empty lines to prevent the script form breaking
+    for row_id, i in enumerate(ws.values, start=1):
+        if row_id == 1: # Пропускаем строку заголовков
+            continue
+        # Пропускаем пустые строки
         if not i or i[0] is None:
             continue
 
         point_id = str(i[0]).strip()
 
-
-        # Check if a chunk with this number exists already
+        # Проверяем, существует ли чанк с таким номером
         if point_id in new_chunk_tree.chunks.keys():
             logger.warning(msg=f"Duplicate point found: {point_id}")
         else:
-            # Add new chunk to the chunk tree if line has a point in a correct format
+            # Добавляем чанк если строка содержит пункт в правильном формате
             if re.match(r"\d+(\.\d+)*", point_id):
 
                 new_chunk_tree.add_chunk(point_id, i[1])
+                row_map[point_id] = row_id
                 last_point = point_id
 
-            # Add new chunk to the chunk tree if line has a subpoint in a correct format
+            # Добавляем чанк если строка содержит подпункт в правильном формате
             elif re.match(r"[а-яА-Яa-zA-Z]\)$", point_id):
                 new_chunk_tree.add_chunk(last_point + point_id, i[1])
+                row_map[last_point + point_id] = row_id
 
             else:
                 logger.warning(msg=f"Point in wrong format found: {point_id}")
 
     for n in new_chunk_tree.chunks.keys():
-        # subpoints with letter like 4.6.11б) - strip the letter to get the parent id
+        # Подпункты вида 4.6.11б) — убираем букву, чтобы получить id родителя
         if re.search(r"[а-яА-Яa-zA-Z]\)$", n):
             parent_id = re.sub(r"[а-яА-Яa-zA-Z]\)$", "", n)
             if parent_id in new_chunk_tree.chunks:
                 new_chunk_tree.add_edge(parent_id, n)
-        # numeric subpoints like 4.6.11 - strip the last .segment to get the parent
+        # Числовые подпункты вида 4.6.11 — убираем последний сегмент, чтобы получить id родителя
         elif "." in n:
             parent_id = n.rsplit(".", 1)[0]
             if parent_id in new_chunk_tree.chunks:
                 new_chunk_tree.add_edge(parent_id, n)
-    return new_chunk_tree
+    return new_chunk_tree, row_map
 
 
-# Function that creates parent and counts depth level chain for any existing node
+# Функция строит цепочку родителей и считает глубину уровня для любого узла
 def build_parent_chain(logger, chunk_tree, chunk_id: str, parent_chain, level):
-    # Check if there is a missing parent
+    # Проверяем, отсутствует ли родитель
     if chunk_tree.chunks[chunk_id].parent_id == "" and chunk_id.isdigit() == False:
         logger.warning(f"{chunk_id} is missing a parent")
         return level, parent_chain
@@ -226,7 +236,8 @@ def build_parent_chain(logger, chunk_tree, chunk_id: str, parent_chain, level):
         level += 1
         return build_parent_chain(logger, chunk_tree, chunk_tree.chunks[chunk_id].parent_id, parent_chain, level)
 
-# Function that creates a text for a leaf chunk with up to 3 nearest parents as context
+
+# Функция формирует текст для листового чанка с учётом до 3 ближайших родителей
 def create_leaf_chunk_text(chunk_tree, chunk_id: str, parent_chain: list):
     parents = parent_chain[-3:] if len(parent_chain) > 3 else parent_chain
     chunk_text = ""
@@ -237,7 +248,8 @@ def create_leaf_chunk_text(chunk_tree, chunk_id: str, parent_chain: list):
     chunk_text += f"[{chunk_id}] {chunk_tree.chunks[chunk_id].chunk_text}"
     return chunk_text, len(parents)
 
-# Function that creates a text for a group chunk with up to 3 nearest parents as context
+
+# Функция формирует текст для группового чанка с учётом до 3 ближайших родителей
 def create_group_chunk_text(chunk_tree, chunk_id: str, parent_chain, children):
     parents = parent_chain[-3:] if len(parent_chain) > 3 else parent_chain
     chunk_text = ""
@@ -250,7 +262,8 @@ def create_group_chunk_text(chunk_tree, chunk_id: str, parent_chain, children):
         chunk_text += f"    - [{child_id}] {chunk_tree.chunks[child_id].chunk_text}\n"
     return chunk_text, len(parents)
 
-# Function that creates a text for chunk vectorization using LLM
+
+# Функция формирует текст для векторизации чанка с помощью LLM
 def create_chunk_text_context(chunk_tree, chunk_id: str, parent_chain: list, system_prompt,
                               terminology: dict, search_index: dict,
                               abbreviations: dict, plain_text: str):
@@ -275,7 +288,7 @@ def create_chunk_text_context(chunk_tree, chunk_id: str, parent_chain: list, sys
     else:
         augmented_prompt = system_prompt
 
-    # Build chunk text with up to 3 parents for LLM input
+    # Формируем текст чанка с учётом до 3 родителей для передачи в LLM
     parents = parent_chain[-3:] if len(parent_chain) > 3 else parent_chain
     chunk_text = ""
     space = "  "
@@ -291,22 +304,23 @@ def create_chunk_text_context(chunk_tree, chunk_id: str, parent_chain: list, sys
     return response.content, found_terms
 
 
-#Function that saves a dict as a json file
+# Функция сохраняет словарь в JSON-файл
 def save_to_json(data, filepath):
     path = Path(filepath)
 
-    # Create a directory if it doesn't exist
+    # Создаём директорию если она не существует
     path.parent.mkdir(parents=True, exist_ok=True)
 
     with path.open(mode="w", encoding="utf-8") as f:
         json.dump(data, f, indent=1, ensure_ascii=False)
 
-# Function to create a logger
+
+# Функция создаёт логгер
 def create_logger():
     logger = logging.getLogger("chunk_function_bank_logger")
     logger.setLevel(logging.INFO)
 
-    # Set logger file path
+    # Указываем путь к файлу логов
     log_path = Path("chunk_function_bank.log")
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -324,56 +338,64 @@ def create_logger():
     return logger
 
 
-
 ######################################################################################
 
 
-
-# Create argument parser to support passing arguments from command line
+# Создаём парсер аргументов командной строки
 parser = argparse.ArgumentParser()
 parser.add_argument("--input", required=True)
 parser.add_argument("--terminology", default="dictionary/terminology_for_llm_full.json")
 parser.add_argument("--abbreviations", default="dictionary/abbreviations.json")
 args = parser.parse_args()
 
-# Input file path and resulting file path
+# Пути к входному и выходному файлам
 input_path = args.input
 today = date.today().strftime("%Y-%m-%d")
 output_path = f"results/chunks_{today}.json"
 terminology_path = args.terminology
 
-# Create a logger
+# Создаём логгер
 new_logger = create_logger()
 
 new_logger.info(msg="Script started")
 
-# Open file and save the data to openpyxl worksheet
+# Открываем файл и загружаем данные в рабочий лист openpyxl
 try:
     file_path = Path(input_path)
-    wb = load_workbook(file_path, read_only=True)
-    sheet = wb.sheetnames[0]
-    ws = wb[sheet]
-    new_logger.info(msg=f"File {file_path} is read")
+    wb = load_workbook(file_path)
+    ws = wb[wb.sheetnames[0]]
+
+    vec_col_id = None
+    for cell in ws[1]:
+        if cell.value == "Текст для векторизации":
+            vec_col_id = cell.column
+            break
+
+    if vec_col_id is None:
+        vec_col_id = ws.max_column + 1
+        ws.cell(row=1, column=vec_col_id, value="Текст для векторизации")
+        new_logger.info(f"'Текст для векторизации' column not found — created at column {vec_col_id}")
 
 except Exception as e:
     new_logger.error(msg=e)
     print(e)
     exit()
 
-chunk_tree = create_chunk_tree(ws, new_logger)
+# Создаём дерево чанков из Excel-файла
+chunk_tree, row_map = create_chunk_tree(ws, new_logger)
 new_logger.info(msg="Chunk tree created")
 
-# Load terminology glossary and build search index
+# Загружаем глоссарий терминологии и строим поисковый индекс
 terminology, search_index = load_terminology(terminology_path)
 new_logger.info(msg=f"Terminology loaded: {len(terminology)} terms, {len(search_index)} search keys")
 
-# Load abbreviations glossary
+# Загружаем словарь аббревиатур
 abbreviations = load_abbreviations(args.abbreviations, new_logger)
 
-# Create data storage variable
+# Создаём переменную для хранения результатов
 result_data = []
 
-# Create llm model
+# Создаём модель LLM
 llm = ChatOpenAI(
     model=os.environ["OPENAI_MODEL"],
     api_key=os.environ["OPENAI_API_KEY"],
@@ -381,7 +403,7 @@ llm = ChatOpenAI(
     seed=47
 )
 
-#System prompt
+# Системный промпт
 system_prompt = SystemMessage("""
 Твоя задача — переформулировать иерархическую техническую метку
 в единый связный абзац для последующей векторизации.
@@ -397,7 +419,6 @@ system_prompt = SystemMessage("""
 - Результат должен быть понятен без исходного текста
 """)
 
-
 total_chunks = len(chunk_tree.chunks)
 print(f"\nProcessing {total_chunks} chunks...\n")
 
@@ -409,7 +430,7 @@ for idx, i in enumerate(chunk_tree.chunks.values(), 1):
     level = 1
     parent_chain = []
 
-    # Create a parent chain and calculate level depth
+    # Строим цепочку родителей и считаем глубину уровня
     level, parent_chain = build_parent_chain(new_logger, chunk_tree, i.chunk_id, parent_chain, level)
     parent_chain = sorted(parent_chain, key=numeric_sort_key)
 
@@ -433,11 +454,24 @@ for idx, i in enumerate(chunk_tree.chunks.values(), 1):
     raw_plain_text = plain_text
     plain_text = expand_abbreviations(plain_text, abbreviations)
 
-    context_text, found_terms = create_chunk_text_context(
-        chunk_tree, i.chunk_id, parent_chain,
-        system_prompt, terminology, search_index,
-        abbreviations, raw_plain_text
-    )
+    # Получаем текст для векторизации из Excel таблицы, если он в ней есть
+    row_num = row_map.get(i.chunk_id)
+    cached_vec_text = ws.cell(row=row_num, column=vec_col_id).value if row_num else None
+
+    # Если текст в таблице найден, используем его, извлекаем из него термины. Если текст не найден, создаем его.
+    if cached_vec_text:
+        context_text = cached_vec_text
+        found_terms = find_terms_in_text(raw_plain_text, search_index, terminology)
+    else:
+        context_text, found_terms = create_chunk_text_context(
+            chunk_tree, i.chunk_id, parent_chain,
+            system_prompt, terminology, search_index,
+            abbreviations, raw_plain_text
+        )
+        if row_num:
+            ws.cell(row=row_num, column=vec_col_id, value=context_text)
+            wb.save(file_path)
+
     result_chunk["chunk_text_context"] = context_text
 
     metadata["has_abbreviations"] = detect_abbreviations(plain_text, abbreviations)
@@ -460,3 +494,7 @@ except Exception as e:
     logging.error(msg=e)
     print(e)
     exit()
+
+#TODO добавить режимы для добавления векторизованного текста: 1) не добавлять вообще
+# 2) добавлять в поданную таблицу (нынешняя логика)
+# 3) создавать новую таблицу
