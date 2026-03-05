@@ -81,7 +81,6 @@ OPENAI_MODEL=gpt-4o
 - openpyxl
 - langchain_openai
 - python-dotenv
-- tiktoken
 
 ## Usage
 
