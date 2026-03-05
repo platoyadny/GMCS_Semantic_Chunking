@@ -1,6 +1,4 @@
 __pycache__/
 *.pyc
 .env
-venv/
-*.log
-chunks.json
+.idea/

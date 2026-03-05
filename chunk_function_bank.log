@@ -1,0 +1,295 @@
+2026-02-15 21:49:07,265 | INFO | Script started
+2026-02-15 21:49:07,269 | INFO | File C:\Users\kovre\PycharmProjects\PythonProject1\test_tables.xlsx is read
+2026-02-15 21:49:07,270 | INFO | Chunk tree created
+2026-02-15 21:49:07,270 | WARNING | 3.4.5.1 is missing a parent
+2026-02-15 21:49:07,270 | WARNING | 3.5.1 is missing a parent
+2026-02-15 21:49:07,270 | WARNING | 3.5.2 is missing a parent
+2026-02-15 21:49:07,270 | WARNING | 3.5.2 is missing a parent
+2026-02-15 21:49:07,271 | WARNING | 3.5.2 is missing a parent
+2026-02-15 21:49:07,271 | WARNING | 3.5.3 is missing a parent
+2026-02-15 21:49:07,271 | WARNING | 3.5.3 is missing a parent
+2026-02-15 21:49:07,271 | WARNING | 3.5.3 is missing a parent
+2026-02-15 21:49:07,271 | WARNING | 3.5.3 is missing a parent
+2026-02-15 21:49:07,271 | WARNING | 3.5.3 is missing a parent
+2026-02-15 21:49:07,271 | WARNING | 3.5.4 is missing a parent
+2026-02-15 21:49:07,271 | WARNING | 3.5.5 is missing a parent
+2026-02-15 21:49:07,271 | WARNING | 3.5.6 is missing a parent
+2026-02-15 21:49:07,272 | WARNING | 3.5.7 is missing a parent
+2026-02-15 21:49:07,272 | WARNING | 3.5.7 is missing a parent
+2026-02-15 21:49:07,272 | WARNING | 3.5.7 is missing a parent
+2026-02-15 21:49:07,272 | WARNING | 3.5.7 is missing a parent
+2026-02-15 21:49:07,272 | WARNING | 3.5.7 is missing a parent
+2026-02-15 21:49:07,272 | WARNING | 3.5.8 is missing a parent
+2026-02-15 21:49:07,272 | WARNING | 3.5.8 is missing a parent
+2026-02-15 21:49:07,272 | INFO | Data object created
+2026-02-15 21:49:07,275 | INFO | JSON file saved
+2026-02-16 13:38:31,670 | INFO | Script started
+2026-02-16 13:38:31,748 | INFO | File C:\Users\kovre\PycharmProjects\PythonProject1\test_tables.xlsx is read
+2026-02-16 13:38:31,752 | INFO | Chunk tree created
+2026-02-16 13:38:31,752 | WARNING | 3.4.5.1 is missing a parent
+2026-02-16 13:38:31,752 | WARNING | 3.5.1 is missing a parent
+2026-02-16 13:38:31,752 | WARNING | 3.5.2 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.2 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.2 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.3 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.3 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.3 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.3 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.3 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.4 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.5 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.6 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.7 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.7 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.7 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.7 is missing a parent
+2026-02-16 13:38:31,753 | WARNING | 3.5.7 is missing a parent
+2026-02-16 13:38:31,754 | WARNING | 3.5.8 is missing a parent
+2026-02-16 13:38:31,754 | WARNING | 3.5.8 is missing a parent
+2026-02-16 13:38:31,754 | INFO | Data object created
+2026-02-16 13:38:31,757 | INFO | JSON file saved
+2026-02-19 15:25:03,101 | INFO | Script started
+2026-02-19 15:25:03,173 | INFO | File C:\Users\kovre\PycharmProjects\PythonProject1\test_tables.xlsx is read
+2026-02-19 15:25:03,176 | INFO | Chunk tree created
+2026-02-19 15:25:03,177 | WARNING | 3.4.5.1 is missing a parent
+2026-02-19 15:25:03,177 | WARNING | 3.5.1 is missing a parent
+2026-02-19 15:25:03,177 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:25:03,177 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:25:03,177 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:25:03,177 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:25:03,177 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:25:03,177 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:25:03,177 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:25:03,177 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:25:03,178 | WARNING | 3.5.4 is missing a parent
+2026-02-19 15:25:03,178 | WARNING | 3.5.5 is missing a parent
+2026-02-19 15:25:03,178 | WARNING | 3.5.6 is missing a parent
+2026-02-19 15:25:03,178 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:25:03,178 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:25:03,178 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:25:03,178 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:25:03,178 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:25:03,178 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:25:03,178 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:25:03,178 | INFO | Data object created
+2026-02-19 15:25:03,182 | INFO | JSON file saved
+2026-02-19 15:26:02,882 | INFO | Script started
+2026-02-19 15:26:02,893 | INFO | File C:\Users\kovre\PycharmProjects\PythonProject1\test_tables.xlsx is read
+2026-02-19 15:26:02,896 | INFO | Chunk tree created
+2026-02-19 15:26:02,896 | WARNING | 3.4.5.1 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.1 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.4 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.5 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.6 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:26:02,897 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:26:02,898 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:26:02,898 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:26:02,898 | INFO | Data object created
+2026-02-19 15:26:02,901 | INFO | JSON file saved
+2026-02-19 15:26:45,249 | INFO | Script started
+2026-02-19 15:26:45,259 | INFO | File C:\Users\kovre\PycharmProjects\PythonProject1\test_tables.xlsx is read
+2026-02-19 15:26:45,262 | INFO | Chunk tree created
+2026-02-19 15:26:45,262 | WARNING | 3.4.5.1 is missing a parent
+2026-02-19 15:26:45,262 | WARNING | 3.5.1 is missing a parent
+2026-02-19 15:26:45,262 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:26:45,262 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:26:45,262 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.4 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.5 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.6 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:26:45,263 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:26:45,263 | INFO | Data object created
+2026-02-19 15:26:45,267 | INFO | JSON file saved
+2026-02-19 15:27:22,626 | INFO | Script started
+2026-02-19 15:27:22,641 | INFO | File C:\Users\kovre\PycharmProjects\PythonProject1\test_tables.xlsx is read
+2026-02-19 15:27:22,645 | INFO | Chunk tree created
+2026-02-19 15:27:22,646 | WARNING | 3.4.5.1 is missing a parent
+2026-02-19 15:27:22,646 | WARNING | 3.5.1 is missing a parent
+2026-02-19 15:27:22,646 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:27:22,646 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:27:22,646 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.4 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.5 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.6 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:27:22,647 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:27:22,648 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:27:22,648 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:27:22,648 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:27:22,648 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:27:22,648 | INFO | Data object created
+2026-02-19 15:27:22,653 | INFO | JSON file saved
+2026-02-19 15:30:27,322 | INFO | Script started
+2026-02-19 15:30:27,334 | INFO | File C:\Users\kovre\PycharmProjects\PythonProject1\test_tables.xlsx is read
+2026-02-19 15:30:27,337 | INFO | Chunk tree created
+2026-02-19 15:30:27,338 | WARNING | 3.4.5.1 is missing a parent
+2026-02-19 15:30:27,338 | WARNING | 3.5.1 is missing a parent
+2026-02-19 15:30:27,338 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:30:27,338 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:30:27,338 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:30:27,338 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:30:27,338 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:30:27,338 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.4 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.5 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.6 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:30:27,339 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:30:27,339 | INFO | Data object created
+2026-02-19 15:30:27,344 | INFO | JSON file saved
+2026-02-19 15:33:38,602 | INFO | Script started
+2026-02-19 15:33:38,612 | INFO | File C:\Users\kovre\PycharmProjects\PythonProject1\test_tables.xlsx is read
+2026-02-19 15:33:38,615 | INFO | Chunk tree created
+2026-02-19 15:33:38,616 | WARNING | 3.4.5.1 is missing a parent
+2026-02-19 15:33:38,616 | WARNING | 3.5.1 is missing a parent
+2026-02-19 15:33:38,616 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:33:38,616 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:33:38,616 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:33:38,616 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:33:38,616 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:33:38,616 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:33:38,617 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:33:38,617 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:33:38,617 | WARNING | 3.5.4 is missing a parent
+2026-02-19 15:33:38,617 | WARNING | 3.5.5 is missing a parent
+2026-02-19 15:33:38,617 | WARNING | 3.5.6 is missing a parent
+2026-02-19 15:33:38,617 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:33:38,617 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:33:38,617 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:33:38,617 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:33:38,618 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:33:38,618 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:33:38,618 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:33:38,618 | INFO | Data object created
+2026-02-19 15:33:38,621 | INFO | JSON file saved
+2026-02-19 15:37:03,860 | INFO | Script started
+2026-02-19 15:37:03,873 | INFO | File C:\Users\kovre\PycharmProjects\PythonProject1\test_tables.xlsx is read
+2026-02-19 15:37:03,876 | INFO | Chunk tree created
+2026-02-19 15:37:03,877 | WARNING | 3.4.5.1 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.1 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.4 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.5 is missing a parent
+2026-02-19 15:37:03,877 | WARNING | 3.5.6 is missing a parent
+2026-02-19 15:37:03,878 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:37:03,878 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:37:03,878 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:37:03,878 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:37:03,878 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:37:03,878 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:37:03,878 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:37:03,879 | INFO | Data object created
+2026-02-19 15:37:03,883 | INFO | JSON file saved
+2026-02-19 15:38:56,777 | INFO | Script started
+2026-02-19 15:38:56,787 | INFO | File C:\Users\kovre\PycharmProjects\PythonProject1\test_tables.xlsx is read
+2026-02-19 15:38:56,790 | INFO | Chunk tree created
+2026-02-19 15:38:56,791 | WARNING | 3.4.5.1 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.1 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.2 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.3 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.4 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.5 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.6 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:38:56,791 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:38:56,792 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:38:56,792 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:38:56,792 | WARNING | 3.5.7 is missing a parent
+2026-02-19 15:38:56,792 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:38:56,792 | WARNING | 3.5.8 is missing a parent
+2026-02-19 15:38:56,792 | INFO | Data object created
+2026-02-19 15:38:56,795 | INFO | JSON file saved
+2026-03-04 13:05:59,240 | INFO | Script started
+2026-03-04 13:05:59,243 | INFO | File test_tables.xlsx is read
+2026-03-04 13:05:59,244 | INFO | Chunk tree created
+2026-03-04 19:12:26,633 | INFO | Script started
+2026-03-04 19:12:26,638 | INFO | File test_tables.xlsx is read
+2026-03-04 19:12:26,640 | WARNING | Point in wrong format found: ё)
+2026-03-04 19:12:26,640 | WARNING | Duplicate point found: 2.1
+2026-03-04 19:12:26,640 | WARNING | Duplicate point found: 4.1
+2026-03-04 19:12:26,640 | INFO | Chunk tree created
+2026-03-04 19:12:26,640 | INFO | Terminology loaded: 21 terms, 34 search keys
+2026-03-04 19:12:26,641 | INFO | Abbreviations loaded: 67 entries from ../abbreviations.json
+2026-03-04 19:14:19,087 | INFO | Script started
+2026-03-04 19:14:19,091 | INFO | File test_tables.xlsx is read
+2026-03-04 19:14:19,093 | WARNING | Point in wrong format found: ё)
+2026-03-04 19:14:19,093 | WARNING | Duplicate point found: 2.1
+2026-03-04 19:14:19,093 | WARNING | Duplicate point found: 4.1
+2026-03-04 19:14:19,093 | INFO | Chunk tree created
+2026-03-04 19:14:19,094 | INFO | Terminology loaded: 21 terms, 34 search keys
+2026-03-04 19:14:19,094 | INFO | Abbreviations loaded: 67 entries from ../abbreviations.json
+2026-03-04 19:22:08,935 | WARNING | 2.10.1 is missing a parent
+2026-03-04 19:22:11,023 | WARNING | 2.10.1 is missing a parent
+2026-03-04 19:22:13,043 | WARNING | 2.10.1 is missing a parent
+2026-03-04 19:22:15,493 | WARNING | 2.10.1 is missing a parent
+2026-03-04 19:22:18,294 | WARNING | 2.10.2 is missing a parent
+2026-03-04 19:28:15,114 | WARNING | 4.10.1 is missing a parent
+2026-03-04 19:28:18,663 | WARNING | 4.10.1 is missing a parent
+2026-03-04 19:28:20,757 | WARNING | 4.10.1 is missing a parent
+2026-03-04 19:28:22,804 | WARNING | 4.10.1 is missing a parent
+2026-03-04 19:28:25,364 | WARNING | 4.10.1 is missing a parent
+2026-03-04 19:28:27,515 | WARNING | 4.10.1 is missing a parent
+2026-03-04 19:28:30,098 | WARNING | 4.10.1 is missing a parent
+2026-03-04 19:28:32,123 | WARNING | 4.10.1 is missing a parent
+2026-03-04 19:28:34,069 | WARNING | 4.10.2 is missing a parent
+2026-03-04 19:28:36,663 | WARNING | 4.10.3 is missing a parent
+2026-03-04 19:28:39,593 | WARNING | 4.10.3 is missing a parent
+2026-03-04 19:31:02,986 | INFO | Data object created
+2026-03-04 19:31:03,003 | INFO | JSON file saved
+2026-03-05 09:57:29,341 | INFO | Script started
+2026-03-05 09:57:29,345 | INFO | File test_tables.xlsx is read
+2026-03-05 09:57:29,347 | WARNING | Point in wrong format found: ё)
+2026-03-05 09:57:29,347 | WARNING | Duplicate point found: 2.1
+2026-03-05 09:57:29,347 | WARNING | Duplicate point found: 4.1
+2026-03-05 09:57:29,347 | INFO | Chunk tree created
+2026-03-05 09:57:29,347 | INFO | Terminology loaded: 21 terms, 34 search keys
+2026-03-05 09:57:29,348 | INFO | Abbreviations loaded: 67 entries from abbreviations.json
