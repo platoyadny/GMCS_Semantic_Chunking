@@ -118,44 +118,94 @@ def find_terms_in_text(text: str, search_index: dict,
 
     return list(found)
 
+# Функция определяет уровень раскрытия термина: min (свой/соседний раздел) или full (далёкий раздел)
+# Логика детерминированная, не зависит от LLM:
+#   - Если chunk_id начинается с home_section → термин "свой", раскрываем минимально
+#   - Если chunk_id и home_section в одном верхнеуровневом разделе → термин "соседний", тоже минимально
+#   - Иначе → термин далёкий, раскрываем полностью
+def get_expansion_level(chunk_id: str, home_section: str) -> str:
+    # chunk_id="2.3.1", home="2.3" → "2.3.1".startswith("2.3.") → min
+    if chunk_id.startswith(home_section + ".") or chunk_id == home_section:
+        return "min"
+
+    # chunk_id="2.2.4", home="2.3" → оба начинаются с "2" → min (соседний раздел)
+    chunk_top = chunk_id.split(".")[0]
+    home_top = home_section.split(".")[0]
+    if chunk_top == home_top:
+        return "min"
+
+    # chunk_id="5.4.1", home="2.3" → разные верхнеуровневые разделы → full
+    return "full"
+
+
 # Функция формирует текстовый блок с определениями терминов для добавления в системный промпт LLM
+# Использует двухуровневую стратегию раскрытия: min_expansion для близких терминов, definition для далёких
 # Возвращает пустую строку, если релевантных терминов не найдено
-def build_glossary_block(found_terms: list[str], terminology: dict) -> str:
+def build_glossary_block(found_terms: list[str], terminology: dict,
+                         chunk_id: str) -> str:
     if not found_terms:
         return ""
 
-    lines = ""
+    # Разделяем термины на два уровня раскрытия по близости к текущему пункту банка
+    lines_min = []   # Близкие термины: свой или соседний раздел → краткая расшифровка
+    lines_full = []  # Далёкие термины: другой верхнеуровневый раздел → полное определение
+
     for term_key in found_terms:
         entry = terminology[term_key]
-        name = entry["full_name"]
-        if entry["abbreviation"]:
-            name += f" ({entry['abbreviation']})"
-        lines += f"\n- {name}: {entry['definition']}"
+        home = entry.get("home_section", "")
+        abbr = entry.get("abbreviation", "") or ""
 
-    return (
-            "\n\nНекоторые термины в тексте требуют раскрытия. "
-            "Если встречается термин из списка ниже — вплети его суть "
-            "одним уточняющим предложением прямо в абзац, своими словами.\n\n"
+        # Определяем уровень раскрытия детерминированно, без LLM
+        if not home:
+            level = "full"
+        else:
+            level = get_expansion_level(chunk_id, home)
 
-            "Пример как делать ПРАВИЛЬНО:\n"
-            "Исходный пункт: «Формирование плановых партий — "
-            "группировка по толщине материала»\n"
-            "Определение из словаря: «Плановая партия — расчётный объект MRP: "
-            "несколько потребностей в одинаковых ДСЕ объединяются в одну партию»\n"
-            "Результат: «При формировании плановых партий — расчётных объектов MRP, "
-            "объединяющих потребности в одинаковых ДСЕ — система поддерживает "
-            "группировку по технологическому критерию толщины материала.»\n\n"
+        if level == "min":
+            # Используем min_expansion если есть, иначе fallback на full_name + аббревиатуру
+            min_exp = entry.get("min_expansion", "")
+            if min_exp:
+                lines_min.append(f"- {min_exp}")
+            elif abbr:
+                lines_min.append(f"- {entry['full_name']} ({abbr})")
+            else:
+                lines_min.append(f"- {entry['full_name']}")
+        else:
+            display = f"{entry['full_name']} ({abbr})" if abbr else entry["full_name"]
+            lines_full.append(f"- {display}: {entry['definition']}")
 
-            "Пример как делать НЕПРАВИЛЬНО:\n"
-            "Результат: «При формировании плановых партий система поддерживает "
-            "группировку по толщине материала. Плановая партия — это расчётный "
-            "объект MRP, который объединяет потребности в одинаковых ДСЕ.»\n"
-            "Почему плохо: определение вынесено отдельным предложением в конец, "
-            "а не вплетено в контекст.\n\n"
+    # Если после фильтрации ничего не осталось — пустая строка
+    if not lines_min and not lines_full:
+        return ""
 
-            "Термины для раскрытия:"
-            + lines
+    # Собираем блок для промпта с разделением на два уровня
+    result = ""
+
+    if lines_min:
+        result += (
+            "\n\nТермины ТЕКУЩЕГО или СОСЕДНЕГО раздела банка — "
+            "используй ТОЛЬКО краткую расшифровку как дана ниже, "
+            "НЕ добавляй дополнительных пояснений из своих знаний:\n"
+            + "\n".join(lines_min)
+        )
+
+    if lines_full:
+        result += (
+            "\n\nТермины ДАЛЁКИХ разделов банка — "
+            "вплети суть одним коротким уточняющим предложением "
+            "прямо в абзац, своими словами:\n"
+            + "\n".join(lines_full)
+        )
+
+    # Общее правило сохранения аббревиатур для обоих уровней
+    result += (
+        "\n\nОБЯЗАТЕЛЬНО: после расшифровки термина сохраняй аббревиатуру в скобках. "
+        "ПРАВИЛЬНО: «технологический состав изделия (ТСИ)». "
+        "НЕПРАВИЛЬНО: «технологический состав изделия». "
+        "При повторном упоминании того же термина — используй только аббревиатуру."
     )
+
+    return result
 
 
 # Функция заменяет аббревиатуры в тексте на их расшифровки
@@ -269,7 +319,8 @@ def create_chunk_text_context(chunk_tree, chunk_id: str, parent_chain: list, sys
                               abbreviations: dict, plain_text: str):
     found_abbr = find_abbreviations_in_text(plain_text, abbreviations)
     found_terms = find_terms_in_text(plain_text, search_index, terminology)
-    glossary_block = build_glossary_block(found_terms, terminology)
+    # Передаём chunk_id чтобы build_glossary_block мог определить уровень раскрытия каждого термина
+    glossary_block = build_glossary_block(found_terms, terminology, chunk_id)
 
     extra = ""
 
@@ -279,9 +330,9 @@ def create_chunk_text_context(chunk_tree, chunk_id: str, parent_chain: list, sys
             extra += f"- {abbr}: {definition}\n"
 
     if glossary_block:
+        # glossary_block уже содержит инструкции по уровням раскрытия и правило сохранения аббревиатур
         extra += "\n---\nТермины встреченные в этом пункте:"
         extra += glossary_block
-        extra += "\n---\nПри перефразировании раскрой эти термины согласно определениям выше прямо в тексте формулировки."
 
     if extra:
         augmented_prompt = SystemMessage(system_prompt.content + extra)
@@ -403,13 +454,18 @@ llm = ChatOpenAI(
     seed=47
 )
 
-# Системный промпт
+# Системный промпт (статическая часть, динамическая часть добавляется в create_chunk_text_context)
 system_prompt = SystemMessage("""
 Твоя задача — переформулировать иерархическую техническую метку
 в единый связный абзац для последующей векторизации.
 
 Правила:
-- Раскрой все аббревиатуры прямо в тексте
+- ОБЯЗАТЕЛЬНО сохраняй аббревиатуру в скобках после расшифровки:
+  ПРАВИЛЬНО: «технологический состав изделия (ТСИ)»
+  ПРАВИЛЬНО: «производственный заказ (ПрЗа)»
+  НЕПРАВИЛЬНО: «технологический состав изделия»
+  НЕПРАВИЛЬНО: «ТСИ» (без предшествующей расшифровки)
+  При повторном упоминании того же термина — используй только аббревиатуру
 - Сохрани ВСЕ конкретные детали из исходного текста —
   ни одна деталь не должна быть потеряна
 - Не добавляй общих фраз ("позволяет оптимизировать",

@@ -1,4 +1,10 @@
+.env
 __pycache__/
 *.pyc
-.env
+output/*.json
+*.log
+results/
 .idea/
+docs/
+.DS_Store
+~$*
