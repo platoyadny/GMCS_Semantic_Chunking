@@ -51,6 +51,7 @@ def numeric_sort_key(chunk_id: str) -> tuple:
     parts = base.split(".")
     return tuple(int(p) for p in parts if p.isdigit())
 
+
 # Функиция загружает словарь аббревиатур из JSON-файла
 def load_abbreviations(filepath: str, logger) -> dict:
     with open(filepath, "r", encoding="utf-8") as f:
@@ -60,7 +61,7 @@ def load_abbreviations(filepath: str, logger) -> dict:
 
 
 # Функция загружает глоссарий терминологии из JSON и строит поисковый индекс
-# Словарь terminology хранит пары term_key → запись (full_name, aliases, definition, distinguish_from, abbreviation, search_roots)
+# Словарь terminology хранит пары term_key → запись из JSON (full_name, aliases, definition, distinguish_from, abbreviation, search_roots)
 # search_index хранит пары full_name : term_key и abbreviation : term_key
 def load_terminology(filepath: str) -> tuple[dict, dict]:
     with open(filepath, "r", encoding="utf-8") as f:
@@ -71,6 +72,7 @@ def load_terminology(filepath: str) -> tuple[dict, dict]:
         if entry["abbreviation"]:
             search_index[entry["abbreviation"].lower()] = term_key
     return terminology, search_index
+
 
 # Функция проверяет, содержит ли текст хотя бы одну аббревиатуру из словаря
 # Используется для заполнения метаданных has_abbreviations
@@ -118,6 +120,7 @@ def find_terms_in_text(text: str, search_index: dict,
 
     return list(found)
 
+
 # Функция определяет уровень раскрытия термина: min (свой/соседний раздел) или full (далёкий раздел)
 # Логика детерминированная, не зависит от LLM:
 #   - Если chunk_id начинается с home_section → термин "свой", раскрываем минимально
@@ -147,7 +150,7 @@ def build_glossary_block(found_terms: list[str], terminology: dict,
         return ""
 
     # Разделяем термины на два уровня раскрытия по близости к текущему пункту банка
-    lines_min = []   # Близкие термины: свой или соседний раздел → краткая расшифровка
+    lines_min = []  # Близкие термины: свой или соседний раздел → краткая расшифровка
     lines_full = []  # Далёкие термины: другой верхнеуровневый раздел → полное определение
 
     for term_key in found_terms:
@@ -183,18 +186,18 @@ def build_glossary_block(found_terms: list[str], terminology: dict,
 
     if lines_min:
         result += (
-            "\n\nТермины ТЕКУЩЕГО или СОСЕДНЕГО раздела банка — "
-            "используй ТОЛЬКО краткую расшифровку как дана ниже, "
-            "НЕ добавляй дополнительных пояснений из своих знаний:\n"
-            + "\n".join(lines_min)
+                "\n\nТермины ТЕКУЩЕГО или СОСЕДНЕГО раздела банка — "
+                "используй ТОЛЬКО краткую расшифровку как дана ниже, "
+                "НЕ добавляй дополнительных пояснений из своих знаний:\n"
+                + "\n".join(lines_min)
         )
 
     if lines_full:
         result += (
-            "\n\nТермины ДАЛЁКИХ разделов банка — "
-            "вплети суть одним коротким уточняющим предложением "
-            "прямо в абзац, своими словами:\n"
-            + "\n".join(lines_full)
+                "\n\nТермины ДАЛЁКИХ разделов банка — "
+                "вплети суть одним коротким уточняющим предложением "
+                "прямо в абзац, своими словами:\n"
+                + "\n".join(lines_full)
         )
 
     # Общее правило сохранения аббревиатур для обоих уровней
@@ -207,6 +210,7 @@ def build_glossary_block(found_terms: list[str], terminology: dict,
 
     return result
 
+#TODO: переделать в будущем функцию expand_abbreviations?
 
 # Функция заменяет аббревиатуры в тексте на их расшифровки
 def expand_abbreviations(text: str, abbreviations: dict) -> str:
@@ -215,12 +219,13 @@ def expand_abbreviations(text: str, abbreviations: dict) -> str:
         escaped = re.escape(abbr)
         # Пропускаем если аббревиатура уже расшифрована: паттерн "АББР (расшифровка)"
         already_expanded = re.compile(
-            r"(?<!\w)" + escaped + r"\s*\([^)]*\)", re.IGNORECASE
+            r"(?<![\w-])" + escaped + r"(?![\w-])\s*\([^()]*(?:\([^()]*\)[^()]*)*\)",
+            re.IGNORECASE
         )
         if already_expanded.search(text):
             continue
-        pattern = re.compile(r"(?<!\w)(" + escaped + r")(?!\w)", re.IGNORECASE)
-        text = pattern.sub(r"\1 (" + abbreviations[abbr] + ")", text)
+        pattern = re.compile(r"(?<![\w-])(" + escaped + r")(?![\w-])", re.IGNORECASE)
+        text = pattern.sub(r"\1 (" + abbreviations[abbr] + ")", text, count=1)
     return text
 
 
@@ -231,7 +236,7 @@ def create_chunk_tree(ws, logger):
 
     last_point = ""
     for row_id, i in enumerate(ws.values, start=1):
-        if row_id == 1: # Пропускаем строку заголовков
+        if row_id == 1:  # Пропускаем строку заголовков
             continue
         # Пропускаем пустые строки
         if not i or i[0] is None:
@@ -416,12 +421,14 @@ try:
     wb = load_workbook(file_path)
     ws = wb[wb.sheetnames[0]]
 
+    # Находим в файле колонку Текст для векторизации, если она существует
     vec_col_id = None
     for cell in ws[1]:
         if cell.value == "Текст для векторизации":
             vec_col_id = cell.column
             break
 
+    # Если колонки Текст для векторизации не существует, создаем её
     if vec_col_id is None:
         vec_col_id = ws.max_column + 1
         ws.cell(row=1, column=vec_col_id, value="Текст для векторизации")
@@ -508,16 +515,19 @@ for idx, i in enumerate(chunk_tree.chunks.values(), 1):
         plain_text, parents_depth = create_group_chunk_text(chunk_tree, i.chunk_id, parent_chain, i.children)
 
     raw_plain_text = plain_text
+
+    # Раскрываем аббревиатуры
     plain_text = expand_abbreviations(plain_text, abbreviations)
 
     # Получаем текст для векторизации из Excel таблицы, если он в ней есть
     row_num = row_map.get(i.chunk_id)
     cached_vec_text = ws.cell(row=row_num, column=vec_col_id).value if row_num else None
 
-    # Если текст в таблице найден, используем его, извлекаем из него термины. Если текст не найден, создаем его.
+    # Если текст в таблице найден, используем его, извлекаем из него термины.
     if cached_vec_text:
         context_text = cached_vec_text
         found_terms = find_terms_in_text(raw_plain_text, search_index, terminology)
+    # Если текст не найден, создаем его с помощью LLM
     else:
         context_text, found_terms = create_chunk_text_context(
             chunk_tree, i.chunk_id, parent_chain,
@@ -533,6 +543,7 @@ for idx, i in enumerate(chunk_tree.chunks.values(), 1):
     metadata["has_abbreviations"] = detect_abbreviations(plain_text, abbreviations)
     metadata["found_terms"] = found_terms
     metadata["parents_depth"] = parents_depth
+
     result_chunk["chunk_text_plain"] = plain_text
     result_chunk["metadata"] = metadata
 
@@ -551,6 +562,6 @@ except Exception as e:
     print(e)
     exit()
 
-#TODO добавить режимы для добавления векторизованного текста: 1) не добавлять вообще
+# TODO добавить режимы для добавления векторизованного текста: 1) не добавлять вообще
 # 2) добавлять в поданную таблицу (нынешняя логика)
 # 3) создавать новую таблицу
