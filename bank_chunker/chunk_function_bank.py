@@ -210,7 +210,7 @@ def build_glossary_block(found_terms: list[str], terminology: dict,
 
     return result
 
-#TODO: переделать в будущем функцию expand_abbreviations?
+#TODO: переделать в будущем функцию expand_abbreviations ?
 
 # Функция заменяет аббревиатуры в тексте на их расшифровки
 def expand_abbreviations(text: str, abbreviations: dict) -> str:
