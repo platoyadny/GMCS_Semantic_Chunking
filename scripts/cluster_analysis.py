@@ -90,7 +90,7 @@ def reduce_tsne(embeddings):
     from sklearn.manifold import TSNE
     print("\nt-SNE проекция...")
     return TSNE(n_components=2, perplexity=min(30, len(embeddings)-1),
-                random_state=42, metric='cosine', n_iter=1000).fit_transform(embeddings)
+                random_state=42, metric='cosine', max_iter=1000).fit_transform(embeddings)
 
 
 def reduce_umap(embeddings):
