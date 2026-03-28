@@ -1,8 +1,7 @@
 """
-experiments.py — Два эксперимента для диагностики поиска.
-
-Эксперимент 1: Union трёх типов чанков + анализ секций
-Эксперимент 3: Exact cosine search (brute-force) вместо HNSW KNN
+experiments.py — Два эксперимента.
+  Эксп 1: Union трёх типов чанков top-50 + анализ секций
+  Эксп 3: Exact cosine vs HNSW KNN
 
   python scripts/experiments.py --exp 1
   python scripts/experiments.py --exp 3
@@ -16,27 +15,19 @@ from collections import defaultdict, Counter
 from sentence_transformers import SentenceTransformer
 from opensearchpy import OpenSearch
 
-
 OPENSEARCH_URL = "https://10.40.10.111:9200"
 OPENSEARCH_USER = "admin"
 OPENSEARCH_PASSWORD = "ProcessScout_2026!"
 INDEX_BANK = "processscout_bank"
 
 ETALON = [
-    ("BP-06.01.01", ["FB-4.7.1", "FB-4.16.1"],
-     "Формирование годового номенклатурного плана"),
-    ("BP-06.01.02", ["FB-4.7.3"],
-     "Разработка сетевого графика выпуска"),
-    ("BP-06.01.03", ["FB-4.3", "FB-4.7.2"],
-     "Прогнозный план + MRP"),
-    ("BP-06.01.04", ["FB-4.6.2"],
-     "Ограничения мощности"),
-    ("BP-06.01.05", ["FB-5.13.1"],
-     "% выполнения плана"),
-    ("BP-06.01.06", ["FB-4.10.1.2", "FB-4.6.8.4"],
-     "Расчет загрузки РЦ"),
-    ("BP-06.01.07", ["FB-4.10.1.1"],
-     "Потребность в персонале"),
+    ("BP-06.01.01", ["FB-4.7"], "Формирование годового номенклатурного плана"),
+    ("BP-06.01.02", ["FB-4.7.3"], "Разработка сетевого графика выпуска"),
+    ("BP-06.01.03", ["FB-4.3", "FB-4.7.2"], "Прогнозный план + MRP"),
+    ("BP-06.01.04", ["FB-4.6.2"], "Ограничения мощности"),
+    ("BP-06.01.05", ["FB-5.13.1"], "% выполнения плана"),
+    ("BP-06.01.06", ["FB-4.10.1.2", "FB-4.6.8.4"], "Расчет загрузки РЦ"),
+    ("BP-06.01.07", ["FB-4.10.1.1"], "Потребность в персонале"),
 ]
 
 
@@ -108,44 +99,9 @@ def check_positions(hits, expected_banks):
     return results
 
 
-def print_section_analysis(all_hits_by_type, expected_banks):
-    union = {}
-    for ctype, hits in all_hits_by_type.items():
-        for h in hits:
-            bid = h["_id"]
-            if bid not in union:
-                union[bid] = {"score": h["_score"], "types": set()}
-            union[bid]["types"].add(ctype)
-
-    section_counter = Counter()
-    for bid, info in union.items():
-        section = get_section_l2(bid)
-        section_counter[section] += len(info["types"])
-
-    print(f"  Union: {len(union)} уникальных кандидатов")
-    print(f"  Top-5 секций:")
-    for sec, weight in section_counter.most_common(5):
-        etalon_in = [e for e in expected_banks if get_section_l2(e) == sec]
-        marker = f" ← ЭТАЛОН: {etalon_in}" if etalon_in else ""
-        print(f"    {sec}: вес {weight}{marker}")
-
-    for exp in expected_banks:
-        exp_sec = get_section_l2(exp)
-        rank = None
-        for i, (sec, _) in enumerate(section_counter.most_common()):
-            if sec == exp_sec:
-                rank = i + 1
-                break
-        in_union = exp in union
-        found_by = sorted(union[exp]["types"]) if in_union else []
-        print(f"  {exp} (секция {exp_sec}): "
-              f"секция на месте {rank}/{len(section_counter)}, "
-              f"{'в union (' + ','.join(found_by) + ')' if in_union else 'НЕ В UNION'}")
-
-
 def experiment_1(client, model, by_pair):
     print("\n" + "=" * 80)
-    print("ЭКСПЕРИМЕНТ 1: Union трёх типов + анализ секций")
+    print("ЭКСПЕРИМЕНТ 1: Union трёх типов top-50 + секции")
     print("=" * 80)
 
     search_types = ["step_table", "step_enriched", "step_narrative"]
@@ -158,10 +114,12 @@ def experiment_1(client, model, by_pair):
         print(f"{pair_id}: {desc}")
         print(f"Эталон: {expected}")
 
+        # Поиск по каждому типу
         all_hits_by_type = {}
         for ct in search_types:
             chunk = chunks.get(ct)
             if not chunk:
+                print(f"  [{ct:15}]: нет чанка")
                 continue
             query = chunk["search_text"]
             emb = model.encode(query, normalize_embeddings=True).tolist()
@@ -172,16 +130,44 @@ def experiment_1(client, model, by_pair):
             pos_str = ", ".join(f"{e}@{p if p else 'MISS'}" for e, p in positions.items())
             print(f"  [{ct:15}]: {pos_str}")
 
-        print_section_analysis(all_hits_by_type, expected)
+        # Union
+        union = {}
+        for ctype, hits in all_hits_by_type.items():
+            for h in hits:
+                bid = h["_id"]
+                if bid not in union:
+                    union[bid] = {"score": h["_score"], "types": set()}
+                union[bid]["types"].add(ctype)
 
-        union_ids = set()
-        for hits in all_hits_by_type.values():
-            union_ids.update(h["_id"] for h in hits)
+        # Секции по весу
+        section_counter = Counter()
+        for bid, info in union.items():
+            section = get_section_l2(bid)
+            section_counter[section] += len(info["types"])
 
+        print(f"\n  Union: {len(union)} уникальных кандидатов")
+        print(f"  Top-5 секций (по весу):")
+        for sec, weight in section_counter.most_common(5):
+            etalon_in = [e for e in expected if get_section_l2(e) == sec]
+            marker = f" ← ЭТАЛОН: {etalon_in}" if etalon_in else ""
+            print(f"    {sec}: вес {weight}{marker}")
+
+        # Где эталоны
         for exp in expected:
             total += 1
-            if exp in union_ids:
+            exp_sec = get_section_l2(exp)
+            rank = None
+            for i, (sec, _) in enumerate(section_counter.most_common()):
+                if sec == exp_sec:
+                    rank = i + 1
+                    break
+            in_union = exp in union
+            if in_union:
                 found_union += 1
+                found_by = sorted(union[exp]["types"])
+                print(f"  {exp}: В UNION ({','.join(found_by)}), секция {exp_sec} на месте {rank}")
+            else:
+                print(f"  {exp}: НЕ В UNION, секция {exp_sec} на месте {rank}")
 
     print(f"\n{'=' * 80}")
     print(f"ИТОГО: Union recall = {found_union}/{total} ({found_union/total*100:.0f}%)")
@@ -190,13 +176,10 @@ def experiment_1(client, model, by_pair):
 
 def experiment_3(client, model, by_pair):
     print("\n" + "=" * 80)
-    print("ЭКСПЕРИМЕНТ 3: Exact cosine (brute-force) vs HNSW KNN")
+    print("ЭКСПЕРИМЕНТ 3: Exact cosine vs HNSW KNN (по всем типам)")
     print("=" * 80)
 
     search_types = ["step_table", "step_enriched", "step_narrative"]
-    total = 0
-    knn_found = 0
-    exact_found = 0
 
     for pair_id, expected, desc in ETALON:
         chunks = by_pair.get(pair_id, {})
@@ -206,21 +189,18 @@ def experiment_3(client, model, by_pair):
             chunk = chunks.get(ct)
             if not chunk:
                 continue
-
-            query = chunk["search_text"]
-            emb = model.encode(query, normalize_embeddings=True).tolist()
+            emb = model.encode(chunk["search_text"], normalize_embeddings=True).tolist()
 
             knn_hits = knn_search(client, emb, 50)
-            knn_positions = check_positions(knn_hits, expected)
+            knn_pos = check_positions(knn_hits, expected)
 
             exact_hits = exact_cosine_search(client, emb, 50)
-            exact_positions = check_positions(exact_hits, expected)
+            exact_pos = check_positions(exact_hits, expected)
 
-            diffs = []
+            parts = []
             for exp in expected:
-                kp = knn_positions.get(exp)
-                ep = exact_positions.get(exp)
-
+                kp = knn_pos.get(exp)
+                ep = exact_pos.get(exp)
                 kstr = f"@{kp}" if kp else "@MISS"
                 estr = f"@{ep}" if ep else "@MISS"
                 diff = ""
@@ -228,33 +208,44 @@ def experiment_3(client, model, by_pair):
                     diff = " !!! HNSW ПОТЕРЯЛ !!!"
                 elif kp and ep and kp != ep:
                     diff = f" (сдвиг {kp-ep:+d})"
-                diffs.append(f"{exp}: HNSW{kstr} Exact{estr}{diff}")
+                parts.append(f"{exp}: HNSW{kstr} Exact{estr}{diff}")
+            print(f"  [{ct:15}]: {'; '.join(parts)}")
 
-            print(f"  [{ct:15}]: {'; '.join(diffs)}")
+    # Union итого
+    print(f"\n--- Union всех типов: HNSW vs Exact ---")
+    total = 0
+    knn_u = 0
+    exact_u = 0
 
-        # Считаем union по обоим методам (narrative как основной)
-        for ct in ["step_narrative", "step_enriched", "step_table"]:
+    for pair_id, expected, desc in ETALON:
+        chunks = by_pair.get(pair_id, {})
+        knn_ids = set()
+        exact_ids = set()
+        for ct in search_types:
             chunk = chunks.get(ct)
             if not chunk:
                 continue
             emb = model.encode(chunk["search_text"], normalize_embeddings=True).tolist()
-            knn_h = knn_search(client, emb, 50)
-            exact_h = exact_cosine_search(client, emb, 50)
-            for exp in expected:
-                total += 1
-                if exp in [h["_id"] for h in knn_h]:
-                    knn_found += 1
-                if exp in [h["_id"] for h in exact_h]:
-                    exact_found += 1
-            break  # только один тип для итоговой статистики
+            knn_ids.update(h["_id"] for h in knn_search(client, emb, 50))
+            exact_ids.update(h["_id"] for h in exact_cosine_search(client, emb, 50))
+
+        for exp in expected:
+            total += 1
+            if exp in knn_ids:
+                knn_u += 1
+            if exp in exact_ids:
+                exact_u += 1
+            k = "✓" if exp in knn_ids else "✗"
+            e = "✓" if exp in exact_ids else "✗"
+            print(f"  {pair_id} {exp}: HNSW={k} Exact={e}")
 
     print(f"\n{'=' * 80}")
-    print(f"ИТОГО (narrative/enriched, {total} эталонных):")
-    print(f"  HNSW KNN:     {knn_found}/{total} ({knn_found/total*100:.0f}%)")
-    print(f"  Exact cosine: {exact_found}/{total} ({exact_found/total*100:.0f}%)")
-    if exact_found > knn_found:
-        print(f"  !!! Exact нашёл на {exact_found - knn_found} больше !!!")
-    elif exact_found == knn_found:
+    print(f"ИТОГО UNION ({total} эталонных):")
+    print(f"  HNSW:  {knn_u}/{total} ({knn_u/total*100:.0f}%)")
+    print(f"  Exact: {exact_u}/{total} ({exact_u/total*100:.0f}%)")
+    if exact_u > knn_u:
+        print(f"  Exact нашёл на {exact_u - knn_u} больше!")
+    else:
         print(f"  Одинаково — HNSW не теряет")
     print(f"{'=' * 80}")
 
