@@ -536,6 +536,8 @@ def process_chunk(chunk: dict, query_embedding: list[float], client, openai_key:
         top_n=args.top_clusters,                   # сколько лучших кластеров обрабатывать
     )
 
+
+
     if not ranked:
         result_meta["no_clusters_passed_filter"] = True
         return {
@@ -575,6 +577,17 @@ def process_chunk(chunk: dict, query_embedding: list[float], client, openai_key:
         "selected_cluster_combined_score": best_cluster["combined_score"],
         "selected_cluster_size":          best_cluster["size"],
         "n_qualified_outliers":           len(qualified_outliers),
+        "all_clusters_scores": [
+            {
+                "cluster_id": s["cluster_id"],
+                "combined_score": s["combined_score"],
+                "centroid_cosine": s["centroid_cosine"],
+                "top3_mean": s["top3_mean"],
+                "density": s["density"],
+                "size": s["size"],
+            }
+            for s in stats
+        ],
     })
 
     return {
