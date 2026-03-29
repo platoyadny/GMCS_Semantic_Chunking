@@ -6,3 +6,12 @@ python-dotenv>=1.0.0
 
 # asis_chunker (чанкинг работает без внешних зависимостей — только stdlib;
 #               langchain-openai и python-dotenv нужны только для --use-llm)
+
+# cluster_search
+numpy>=2.4.3
+umap-learn>=0.5.11
+hdbscan>=0.8.41
+sentence-transformers>=5.3.0
+opensearch-py>=3.1.0
+openai>=2.24.0
+python-dotenv>=1.0.0
