@@ -588,6 +588,7 @@ def process_chunk(chunk: dict, query_embedding: list[float], client, openai_key:
             }
             for s in stats
         ],
+
     })
 
     return {
