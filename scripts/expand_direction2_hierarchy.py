@@ -78,7 +78,9 @@ def load_confirmed_mappings(consolidated_path):
         operation = item.get("operation", "")
         confirmed = []
         for section in item.get("sections", []):
-            if section.get("category") == "основной":
+            # Раскрытие для ВСЕХ кандидатов, не только основных
+            # Аналитик может подтвердить любого — ему нужно раскрытие
+            if section.get("category") in ("основной", "дополнительный", "неочевидный"):
                 bank_id = section["representative_id"]
                 # Extract short description from representative_text
                 text = section.get("representative_text", "")

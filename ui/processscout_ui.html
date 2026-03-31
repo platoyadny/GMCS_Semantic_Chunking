@@ -1,0 +1,2181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProcessScout AI — Валидация ФТТ</title>
+
+  <!-- React 18 via CDN — no build step needed -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel standalone — allows JSX in browser without compilation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- docx.js — Word document generation in-browser -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.min.js"></script>
+
+  <style>
+    /* ========================================================
+       CSS VARIABLES — central theming, easy to adjust
+       ======================================================== */
+    :root {
+      /* Base palette — professional, muted tones */
+      --bg-primary: #0f1117;
+      --bg-secondary: #1a1d27;
+      --bg-card: #222633;
+      --bg-card-hover: #2a2e3d;
+      --bg-input: #181b24;
+
+      /* Text colors */
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0ad;
+      --text-muted: #5f6577;
+
+      /* Accent colors for statuses */
+      --color-confirmed: #22c55e;
+      --color-confirmed-bg: rgba(34, 197, 94, 0.12);
+      --color-excluded: #ef4444;
+      --color-excluded-bg: rgba(239, 68, 68, 0.12);
+      --color-undecided: #6b7280;
+      --color-undecided-bg: rgba(107, 114, 128, 0.12);
+
+      /* Category badge colors */
+      --cat-primary: #3b82f6;       /* основной */
+      --cat-primary-bg: rgba(59, 130, 246, 0.15);
+      --cat-additional: #a855f7;    /* дополнительный */
+      --cat-additional-bg: rgba(168, 85, 247, 0.15);
+      --cat-unexpected: #f59e0b;    /* неочевидный */
+      --cat-unexpected-bg: rgba(245, 158, 11, 0.15);
+
+      /* Expansion direction colors */
+      --dir-need: #22c55e;
+      --dir-need-bg: rgba(34, 197, 94, 0.1);
+      --dir-context: #eab308;
+      --dir-context-bg: rgba(234, 179, 8, 0.1);
+
+      /* Status colors (subprocess/chunk) */
+      --status-done: #22c55e;
+      --status-wip: #eab308;
+      --status-todo: #4b5563;
+
+      /* Interactive */
+      --color-accent: #6366f1;
+      --color-accent-hover: #818cf8;
+      --border-color: #2d3140;
+      --border-radius: 8px;
+
+      /* Typography */
+      --font-main: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
+    /* ========================================================
+       RESET & BASE
+       ======================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-main);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ========================================================
+       LAYOUT — full-height app with header + content
+       ======================================================== */
+    .app-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .app-header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .app-header h1 span {
+      color: var(--color-accent);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .app-content {
+      flex: 1;
+      padding: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ========================================================
+       BREADCRUMB NAVIGATION
+       ======================================================== */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .breadcrumb-item {
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .breadcrumb-item:hover { color: var(--color-accent-hover); }
+
+    .breadcrumb-sep { color: var(--text-muted); }
+
+    .breadcrumb-current {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* ========================================================
+       BUTTONS
+       ======================================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: var(--font-main);
+      white-space: nowrap;
+    }
+
+    .btn:hover { background: var(--bg-card-hover); border-color: var(--text-muted); }
+
+    .btn-primary {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+      color: white;
+    }
+
+    .btn-primary:hover { background: var(--color-accent-hover); }
+
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+    .btn-success { background: var(--color-confirmed); border-color: var(--color-confirmed); color: white; }
+    .btn-danger { background: var(--color-excluded); border-color: var(--color-excluded); color: white; }
+
+    /* Decision buttons — ✓ / ✗ / ? */
+    .decision-group {
+      display: flex;
+      gap: 4px;
+    }
+
+    .decision-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      border: 2px solid var(--border-color);
+      background: transparent;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.15s;
+    }
+
+    .decision-btn:hover { border-color: var(--text-muted); }
+
+    .decision-btn.active-confirmed {
+      background: var(--color-confirmed-bg);
+      border-color: var(--color-confirmed);
+      color: var(--color-confirmed);
+    }
+
+    .decision-btn.active-excluded {
+      background: var(--color-excluded-bg);
+      border-color: var(--color-excluded);
+      color: var(--color-excluded);
+    }
+
+    .decision-btn.active-undecided {
+      background: var(--color-undecided-bg);
+      border-color: var(--color-undecided);
+      color: var(--color-undecided);
+    }
+
+    /* ========================================================
+       CARDS (subprocess list, chunk list, candidate cards)
+       ======================================================== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--text-muted);
+    }
+
+    .card-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ========================================================
+       PROGRESS BAR
+       ======================================================== */
+    .progress-container {
+      margin-bottom: 20px;
+    }
+
+    .progress-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--bg-input);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--color-accent);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    /* ========================================================
+       STATUS BADGES
+       ======================================================== */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+
+    .status-done { background: rgba(34,197,94,0.15); color: var(--status-done); }
+    .status-wip { background: rgba(234,179,8,0.15); color: var(--status-wip); }
+    .status-todo { background: rgba(75,85,99,0.15); color: var(--status-todo); }
+
+    /* Category badges */
+    .cat-badge {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .cat-primary { background: var(--cat-primary-bg); color: var(--cat-primary); }
+    .cat-additional { background: var(--cat-additional-bg); color: var(--cat-additional); }
+    .cat-unexpected { background: var(--cat-unexpected-bg); color: var(--cat-unexpected); }
+
+    /* Direction badges */
+    .dir-badge {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .dir-need { background: var(--dir-need-bg); color: var(--dir-need); }
+    .dir-context { background: var(--dir-context-bg); color: var(--dir-context); }
+
+    /* ========================================================
+       CANDIDATE CARD (Step 1)
+       ======================================================== */
+    .candidate-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: border-color 0.15s;
+    }
+
+    .candidate-card.state-confirmed { border-left: 3px solid var(--color-confirmed); }
+    .candidate-card.state-excluded { border-left: 3px solid var(--color-excluded); opacity: 0.6; }
+    .candidate-card.state-undecided { border-left: 3px solid var(--color-undecided); }
+
+    .candidate-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .candidate-id {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .candidate-path {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 4px 0;
+      font-family: var(--font-mono);
+    }
+
+    .candidate-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 8px 0;
+      line-height: 1.5;
+    }
+
+    .llm-comment {
+      font-size: 13px;
+      color: var(--text-secondary);
+      background: var(--bg-input);
+      border-left: 2px solid var(--color-accent);
+      padding: 8px 12px;
+      margin-top: 8px;
+      border-radius: 0 4px 4px 0;
+      font-style: italic;
+    }
+
+    /* ========================================================
+       EXPANSION CARD (Step 2)
+       ======================================================== */
+    .expansion-group {
+      margin-bottom: 24px;
+    }
+
+    .expansion-group-header {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .expansion-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+    }
+
+    .expansion-item.state-confirmed { border-left: 3px solid var(--color-confirmed); }
+    .expansion-item.state-excluded { border-left: 3px solid var(--color-excluded); opacity: 0.6; }
+
+    /* ========================================================
+       ASIS QUOTE BLOCK
+       ======================================================== */
+    .asis-block {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .asis-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .asis-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    /* ========================================================
+       DATA LOADER SCREEN
+       ======================================================== */
+    .loader-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+      text-align: center;
+    }
+
+    .loader-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .loader-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .loader-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+      max-width: 500px;
+    }
+
+    .loader-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .file-input-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      background: var(--color-accent);
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .file-input-label:hover { background: var(--color-accent-hover); }
+
+    .file-input-hidden { display: none; }
+
+    .loader-error {
+      color: var(--color-excluded);
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    .loader-schema-hint {
+      margin-top: 24px;
+      font-size: 12px;
+      color: var(--text-muted);
+      max-width: 600px;
+    }
+
+    /* ========================================================
+       SETTINGS PANEL (overlay)
+       ======================================================== */
+    .settings-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .settings-panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      width: 420px;
+      max-width: 90vw;
+    }
+
+    .settings-panel h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
+    .settings-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .settings-info {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 16px;
+    }
+
+    /* ========================================================
+       SECTION HEADERS
+       ======================================================== */
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .section-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    /* Step indicator */
+    .step-indicator {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .step-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+    }
+
+    .step-pill.active {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+      color: white;
+    }
+
+    .step-pill.done {
+      background: var(--color-confirmed-bg);
+      border-color: var(--color-confirmed);
+      color: var(--color-confirmed);
+    }
+
+    /* Bottom action bar */
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+      margin-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .action-bar-info {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* ========================================================
+       WORD GENERATION PROGRESS
+       ======================================================== */
+    .word-progress {
+      margin-top: 16px;
+      padding: 12px;
+      background: var(--bg-input);
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* ========================================================
+       SCROLLBAR STYLING
+       ======================================================== */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ========================================================
+       CATEGORY SECTION DIVIDER
+       ======================================================== */
+    .category-section {
+      margin-bottom: 24px;
+    }
+
+    .category-section-header {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    /* Summary counters */
+    .summary-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+
+    .summary-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .summary-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <!-- React mount point -->
+  <div id="root"></div>
+
+  <!-- ============================================================
+       REACT APPLICATION
+       All components in one <script> block with Babel JSX transform
+       ============================================================ -->
+  <script type="text/babel">
+    // ============================================================
+    // CONSTANTS
+    // ============================================================
+
+    // localStorage key prefix — avoids collisions with other apps
+    const LS_KEY_DECISIONS = 'processscout_decisions';
+    const LS_KEY_DATA = 'processscout_data';
+
+    // Category display names and CSS class mappings
+    const CATEGORY_META = {
+      'основной':       { label: 'Основной',       cls: 'cat-primary' },
+      'дополнительный': { label: 'Дополнительный', cls: 'cat-additional' },
+      'неочевидный':    { label: 'Неочевидный',    cls: 'cat-unexpected' },
+    };
+
+    // Direction display names
+    const DIRECTION_META = {
+      'need':    { label: 'Нужен',   cls: 'dir-need' },
+      'context': { label: 'Контекст', cls: 'dir-context' },
+    };
+
+    // Decision states for candidates and expansion items
+    const DECISION = {
+      CONFIRMED: 'confirmed',
+      EXCLUDED:  'excluded',
+      UNDECIDED: 'undecided',
+    };
+
+    // ============================================================
+    // HOOKS: localStorage persistence
+    // ============================================================
+
+    /**
+     * Custom hook that syncs state with localStorage.
+     * On mount, reads from localStorage. On every change, writes back.
+     * @param {string} key — localStorage key
+     * @param {*} initialValue — default if nothing in storage
+     * @returns {[value, setter]} — like useState
+     */
+    function useLocalStorage(key, initialValue) {
+      // useState with lazy initializer — reads localStorage only on first render
+      const [value, setValue] = React.useState(() => {
+        try {
+          const stored = localStorage.getItem(key);
+          return stored ? JSON.parse(stored) : initialValue;
+        } catch (e) {
+          console.warn(`Error reading localStorage key "${key}":`, e);
+          return initialValue;
+        }
+      });
+
+      // Write to localStorage whenever value changes
+      React.useEffect(() => {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+          console.warn(`Error writing localStorage key "${key}":`, e);
+        }
+      }, [key, value]);
+
+      return [value, setValue];
+    }
+
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+
+    /**
+     * Returns the status of a subprocess based on chunk decisions.
+     * @param {object} subprocess — { title, chunks: { id: {...} } }
+     * @param {object} decisions — full decisions state
+     * @returns {'done' | 'wip' | 'todo'}
+     */
+    function getSubprocessStatus(subprocessId, data, decisions) {
+      const sp = data.subprocesses[subprocessId];
+      if (!sp) return 'todo';
+
+      const chunkIds = Object.keys(sp.chunks);
+      if (chunkIds.length === 0) return 'todo';
+
+      // A chunk is "done" if every candidate has a decision (confirmed or excluded)
+      const doneCount = chunkIds.filter(cid => isChunkDone(cid, sp.chunks[cid], decisions)).length;
+
+      if (doneCount === 0) return 'todo';
+      if (doneCount === chunkIds.length) return 'done';
+      return 'wip';
+    }
+
+    /**
+     * Checks if a chunk is fully processed:
+     * - All candidates have confirmed/excluded decisions (not undecided)
+     * - All confirmed candidates have all expansion items decided
+     */
+    function isChunkDone(chunkId, chunkData, decisions) {
+      const candidateIds = Object.keys(chunkData.candidates);
+      if (candidateIds.length === 0) return false;
+
+      // Check every candidate has a decision
+      const candidateDecisions = decisions.candidates[chunkId] || {};
+      const allCandidatesDecided = candidateIds.every(cid => {
+        const d = candidateDecisions[cid];
+        return d === DECISION.CONFIRMED || d === DECISION.EXCLUDED;
+      });
+
+      if (!allCandidatesDecided) return false;
+
+      // Check expansion items for confirmed candidates
+      const confirmedCandidates = candidateIds.filter(cid => candidateDecisions[cid] === DECISION.CONFIRMED);
+      for (const cid of confirmedCandidates) {
+        const expansionKey = `${chunkId}__${cid}`;
+        const expansionDecisions = decisions.expansion[expansionKey] || {};
+        const candidate = chunkData.candidates[cid];
+        if (candidate.expansion && Object.keys(candidate.expansion).length > 0) {
+          const allExpDecided = Object.keys(candidate.expansion).every(eid => {
+            const d = expansionDecisions[eid];
+            return d === DECISION.CONFIRMED || d === DECISION.EXCLUDED;
+          });
+          if (!allExpDecided) return false;
+        }
+      }
+
+      return true;
+    }
+
+    /**
+     * Counts done/total chunks in a subprocess.
+     */
+    function getChunkProgress(subprocessId, data, decisions) {
+      const sp = data.subprocesses[subprocessId];
+      if (!sp) return { done: 0, total: 0 };
+      const chunkIds = Object.keys(sp.chunks);
+      const done = chunkIds.filter(cid => isChunkDone(cid, sp.chunks[cid], decisions)).length;
+      return { done, total: chunkIds.length };
+    }
+
+    /**
+     * Counts done/total subprocesses.
+     */
+    function getGlobalProgress(data, decisions) {
+      const spIds = Object.keys(data.subprocesses);
+      const done = spIds.filter(sid => getSubprocessStatus(sid, data, decisions) === 'done').length;
+      return { done, total: spIds.length };
+    }
+
+    /**
+     * Returns ISO string of current date/time.
+     */
+    function nowISO() {
+      return new Date().toISOString();
+    }
+
+    /**
+     * Formats ISO date string to human-readable Russian format.
+     */
+    function formatDate(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } catch { return iso; }
+    }
+
+    /**
+     * Triggers a browser file download with given content.
+     */
+    function downloadFile(content, filename, mimeType = 'application/json') {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ============================================================
+    // COMPONENT: DataLoader
+    // Initial screen — load JSON data file
+    // ============================================================
+    function DataLoader({ onDataLoaded, onLoadDemo }) {
+      const [error, setError] = React.useState(null);
+      const [loading, setLoading] = React.useState(false);
+      const fileInputRef = React.useRef(null);
+
+      // Handle file selection from <input type="file">
+      const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setLoading(true);
+        setError(null);
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const json = JSON.parse(event.target.result);
+
+            // Basic validation — check required fields
+            if (!json.subprocesses || typeof json.subprocesses !== 'object') {
+              throw new Error('JSON должен содержать поле "subprocesses" с объектом подпроцессов');
+            }
+
+            onDataLoaded(json);
+          } catch (err) {
+            setError(`Ошибка: ${err.message}`);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        reader.onerror = () => {
+          setError('Не удалось прочитать файл');
+          setLoading(false);
+        };
+
+        reader.readAsText(file);
+      };
+
+      // Check if data is cached in localStorage from a previous session
+      const hasCachedData = React.useMemo(() => {
+        try {
+          const cached = localStorage.getItem(LS_KEY_DATA);
+          return cached && JSON.parse(cached).subprocesses;
+        } catch { return false; }
+      }, []);
+
+      const loadCachedData = () => {
+        try {
+          const cached = JSON.parse(localStorage.getItem(LS_KEY_DATA));
+          onDataLoaded(cached);
+        } catch (err) {
+          setError('Не удалось загрузить кешированные данные');
+        }
+      };
+
+      return (
+        <div className="loader-screen">
+          <div className="loader-icon">🔍</div>
+          <div className="loader-title">ProcessScout AI</div>
+          <div className="loader-subtitle">
+            Загрузите JSON с данными маппинга, подготовленный скриптом prepare_data.py.
+            Все решения аналитика сохраняются в браузере автоматически.
+          </div>
+
+          <div className="loader-actions">
+            {/* Main action: load JSON file */}
+            <label className="file-input-label">
+              📂 Загрузить данные (JSON)
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                className="file-input-hidden"
+                onChange={handleFileChange}
+              />
+            </label>
+
+            {/* Secondary: resume from cached data */}
+            {hasCachedData && (
+              <button className="btn btn-primary" onClick={loadCachedData}>
+                ▶ Продолжить прошлую сессию
+              </button>
+            )}
+
+            {/* Demo mode */}
+            {onLoadDemo && (
+              <button className="btn" onClick={onLoadDemo}>
+                🧪 Демо-режим (06.01)
+              </button>
+            )}
+          </div>
+
+          {loading && <div style={{ marginTop: 16, color: 'var(--text-secondary)' }}>Загрузка...</div>}
+          {error && <div className="loader-error">{error}</div>}
+
+          <div className="loader-schema-hint">
+            Формат файла: JSON, сгенерированный prepare_data.py<br/>
+            Содержит подпроцессы, чанки, кандидатов маппинга и раскрытие.
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // COMPONENT: SettingsPanel
+    // Overlay for backup/restore/reset
+    // ============================================================
+    function SettingsPanel({ onClose, decisions, setDecisions, data }) {
+      const fileInputRef = React.useRef(null);
+      const [restoreError, setRestoreError] = React.useState(null);
+
+      // Export decisions as JSON file
+      const handleBackup = () => {
+        const backup = {
+          ...decisions,
+          exportedAt: nowISO(),
+          documentId: data?.meta?.document_id || 'unknown',
+        };
+        const json = JSON.stringify(backup, null, 2);
+        const filename = `processscout_backup_${new Date().toISOString().slice(0,10)}.json`;
+        downloadFile(json, filename);
+      };
+
+      // Import decisions from JSON file
+      const handleRestore = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const restored = JSON.parse(event.target.result);
+            if (!restored.candidates || !restored.expansion) {
+              throw new Error('Файл не содержит decisions (candidates/expansion)');
+            }
+            setDecisions({
+              candidates: restored.candidates || {},
+              expansion: restored.expansion || {},
+              lastUpdated: nowISO(),
+            });
+            setRestoreError(null);
+            onClose();
+          } catch (err) {
+            setRestoreError(`Ошибка: ${err.message}`);
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      // Reset all decisions (with confirmation)
+      const handleReset = () => {
+        if (window.confirm('Удалить ВСЕ решения аналитика? Это действие необратимо.')) {
+          setDecisions({ candidates: {}, expansion: {}, lastUpdated: nowISO() });
+          onClose();
+        }
+      };
+
+      // Unload data (go back to loader screen)
+      const handleUnloadData = () => {
+        if (window.confirm('Выгрузить данные? Решения аналитика останутся в localStorage.')) {
+          localStorage.removeItem(LS_KEY_DATA);
+          window.location.reload();
+        }
+      };
+
+      return (
+        <div className="settings-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+          <div className="settings-panel">
+            <h2>⚙ Настройки</h2>
+
+            <div className="settings-row">
+              <button className="btn" onClick={handleBackup}>💾 Сохранить бекап</button>
+              <label className="btn" style={{ cursor: 'pointer' }}>
+                📂 Загрузить бекап
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  className="file-input-hidden"
+                  onChange={handleRestore}
+                />
+              </label>
+            </div>
+
+            {restoreError && <div className="loader-error">{restoreError}</div>}
+
+            <div className="settings-row">
+              <button className="btn btn-danger btn-sm" onClick={handleReset}>🗑 Сбросить все решения</button>
+              <button className="btn btn-sm" onClick={handleUnloadData}>📤 Выгрузить данные</button>
+            </div>
+
+            <div className="settings-info">
+              Последнее изменение: {formatDate(decisions.lastUpdated)}
+            </div>
+
+            <div style={{ marginTop: 16, textAlign: 'right' }}>
+              <button className="btn" onClick={onClose}>Закрыть</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // COMPONENT: SubprocessList
+    // Top-level list of all subprocesses with statuses
+    // ============================================================
+    function SubprocessList({ data, decisions, onSelect }) {
+      const spIds = Object.keys(data.subprocesses).sort();
+      const { done, total } = getGlobalProgress(data, decisions);
+      const pct = total > 0 ? (done / total * 100) : 0;
+
+      return (
+        <div>
+          <div className="section-title">Валидация ФТТ</div>
+          <div className="section-subtitle">
+            {data.meta?.document_title || 'Документ обследования'} — {total} подпроцессов
+          </div>
+
+          {/* Global progress bar */}
+          <div className="progress-container">
+            <div className="progress-label">Прогресс: {done}/{total} подпроцессов</div>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+
+          {/* Subprocess cards */}
+          <div className="card-grid">
+            {spIds.map(spId => {
+              const sp = data.subprocesses[spId];
+              const status = getSubprocessStatus(spId, data, decisions);
+              const { done: chDone, total: chTotal } = getChunkProgress(spId, data, decisions);
+
+              return (
+                <div key={spId} className="card" onClick={() => onSelect(spId)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontWeight: 600, marginRight: 8 }}>{spId}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{sp.title}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {chDone}/{chTotal}
+                      </span>
+                      <span className={`status-badge status-${status}`}>
+                        {status === 'done' ? '✓ Готово' : status === 'wip' ? '→ В работе' : 'Не начато'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // COMPONENT: ChunkList
+    // List of chunks (steps + recommendations) within a subprocess
+    // ============================================================
+    function ChunkList({ data, decisions, subprocessId, onSelectChunk, onBack }) {
+      const sp = data.subprocesses[subprocessId];
+      const chunkIds = Object.keys(sp.chunks).sort();
+
+      // Separate steps and recommendations
+      const steps = chunkIds.filter(cid => sp.chunks[cid].type === 'step');
+      const recs = chunkIds.filter(cid => sp.chunks[cid].type === 'recommendation');
+
+      const { done, total } = getChunkProgress(subprocessId, data, decisions);
+      const pct = total > 0 ? (done / total * 100) : 0;
+
+      const renderChunkCard = (chunkId) => {
+        const chunk = sp.chunks[chunkId];
+        const isDone = isChunkDone(chunkId, chunk, decisions);
+        const candidateCount = Object.keys(chunk.candidates).length;
+        const decidedCount = Object.values(decisions.candidates[chunkId] || {})
+          .filter(d => d === DECISION.CONFIRMED || d === DECISION.EXCLUDED).length;
+
+        return (
+          <div key={chunkId} className="card" onClick={() => onSelectChunk(chunkId)}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, marginRight: 8 }}>
+                  {chunkId}
+                </span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+                  {chunk.title}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  {decidedCount}/{candidateCount}
+                </span>
+                {isDone
+                  ? <span className="status-badge status-done">✓</span>
+                  : decidedCount > 0
+                    ? <span className="status-badge status-wip">→</span>
+                    : <span className="status-badge status-todo">○</span>
+                }
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      return (
+        <div>
+          {/* Breadcrumb */}
+          <div className="breadcrumb">
+            <span className="breadcrumb-item" onClick={onBack}>Подпроцессы</span>
+            <span className="breadcrumb-sep">›</span>
+            <span className="breadcrumb-current">{subprocessId} {sp.title}</span>
+          </div>
+
+          <div className="section-title">{subprocessId} {sp.title}</div>
+
+          {/* Progress */}
+          <div className="progress-container">
+            <div className="progress-label">Прогресс: {done}/{total} чанков</div>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+
+          {/* Steps section */}
+          {steps.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Шаги ({steps.length})
+              </div>
+              <div className="card-grid">
+                {steps.map(renderChunkCard)}
+              </div>
+            </div>
+          )}
+
+          {/* Recommendations section */}
+          {recs.length > 0 && (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Рекомендации ({recs.length})
+              </div>
+              <div className="card-grid">
+                {recs.map(renderChunkCard)}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // COMPONENT: CandidateReview (Step 1)
+    // Review and decide on mapping candidates for a chunk
+    // ============================================================
+    function CandidateReview({ chunkId, chunkData, decisions, setDecisions }) {
+      const candidates = chunkData.candidates;
+      const candidateIds = Object.keys(candidates);
+      const chunkDecisions = decisions.candidates[chunkId] || {};
+
+      // Group candidates by category
+      const grouped = { 'основной': [], 'дополнительный': [], 'неочевидный': [] };
+      candidateIds.forEach(cid => {
+        const cat = candidates[cid].category || 'неочевидный';
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push(cid);
+      });
+
+      /**
+       * Updates a candidate decision and persists to localStorage.
+       * @param {string} candidateId — e.g. "FB-4.7"
+       * @param {string} decision — "confirmed" | "excluded" | "undecided"
+       */
+      const setCandidate = (candidateId, decision) => {
+        setDecisions(prev => ({
+          ...prev,
+          candidates: {
+            ...prev.candidates,
+            [chunkId]: {
+              ...(prev.candidates[chunkId] || {}),
+              [candidateId]: decision,
+            }
+          },
+          lastUpdated: nowISO(),
+        }));
+      };
+
+      // Summary counts
+      const confirmed = candidateIds.filter(c => chunkDecisions[c] === DECISION.CONFIRMED).length;
+      const excluded = candidateIds.filter(c => chunkDecisions[c] === DECISION.EXCLUDED).length;
+      const undecided = candidateIds.length - confirmed - excluded;
+
+      return (
+        <div>
+          {/* AS-IS quote */}
+          <div className="asis-block">
+            <div className="asis-label">AS-IS из документа обследования</div>
+            <div className="asis-text">{chunkData.asis_text}</div>
+          </div>
+
+          {/* Summary counters */}
+          <div className="summary-row">
+            <div className="summary-item">
+              <div className="summary-dot" style={{ background: 'var(--color-confirmed)' }} />
+              Подтверждено: {confirmed}
+            </div>
+            <div className="summary-item">
+              <div className="summary-dot" style={{ background: 'var(--color-excluded)' }} />
+              Исключено: {excluded}
+            </div>
+            <div className="summary-item">
+              <div className="summary-dot" style={{ background: 'var(--color-undecided)' }} />
+              Не решено: {undecided}
+            </div>
+          </div>
+
+          {/* Candidate cards grouped by category */}
+          {Object.entries(grouped).map(([cat, cids]) => {
+            if (cids.length === 0) return null;
+            const meta = CATEGORY_META[cat] || { label: cat, cls: '' };
+
+            return (
+              <div key={cat} className="category-section">
+                <div className="category-section-header">
+                  <span className={`cat-badge ${meta.cls}`}>{meta.label}</span>
+                  {' '}({cids.length})
+                </div>
+                {cids.map(cid => {
+                  const c = candidates[cid];
+                  const d = chunkDecisions[cid] || DECISION.UNDECIDED;
+
+                  return (
+                    <div key={cid} className={`candidate-card state-${d}`}>
+                      <div className="candidate-header">
+                        <div>
+                          <span className="candidate-id">{cid}</span>
+                          <span className={`cat-badge ${meta.cls}`} style={{ marginLeft: 8 }}>
+                            {meta.label}
+                          </span>
+                        </div>
+                        {/* Decision buttons */}
+                        <div className="decision-group">
+                          <button
+                            className={`decision-btn ${d === DECISION.CONFIRMED ? 'active-confirmed' : ''}`}
+                            onClick={() => setCandidate(cid, d === DECISION.CONFIRMED ? DECISION.UNDECIDED : DECISION.CONFIRMED)}
+                            title="Подтвердить"
+                          >✓</button>
+                          <button
+                            className={`decision-btn ${d === DECISION.EXCLUDED ? 'active-excluded' : ''}`}
+                            onClick={() => setCandidate(cid, d === DECISION.EXCLUDED ? DECISION.UNDECIDED : DECISION.EXCLUDED)}
+                            title="Исключить"
+                          >✗</button>
+                        </div>
+                      </div>
+
+                      <div className="candidate-path">{c.bank_path}</div>
+                      <div className="candidate-text">{c.bank_text}</div>
+
+                      {c.llm_comment && (
+                        <div className="llm-comment">💬 {c.llm_comment}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // COMPONENT: ExpansionReview (Step 2)
+    // Review expansion items for confirmed candidates
+    // ============================================================
+    function ExpansionReview({ chunkId, chunkData, decisions, setDecisions }) {
+      const candidates = chunkData.candidates;
+      const chunkCandDecisions = decisions.candidates[chunkId] || {};
+
+      // Only show expansion for confirmed candidates
+      const confirmedIds = Object.keys(candidates).filter(
+        cid => chunkCandDecisions[cid] === DECISION.CONFIRMED
+      );
+
+      /**
+       * Updates an expansion item decision.
+       * @param {string} candidateId — parent candidate e.g. "FB-4.7"
+       * @param {string} expansionId — expansion item e.g. "FB-4.7.1"
+       * @param {string} decision — confirmed/excluded/undecided
+       */
+      const setExpansionDecision = (candidateId, expansionId, decision) => {
+        const expKey = `${chunkId}__${candidateId}`;
+        setDecisions(prev => ({
+          ...prev,
+          expansion: {
+            ...prev.expansion,
+            [expKey]: {
+              ...(prev.expansion[expKey] || {}),
+              [expansionId]: decision,
+            }
+          },
+          lastUpdated: nowISO(),
+        }));
+      };
+
+      if (confirmedIds.length === 0) {
+        return (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+            Нет подтверждённых кандидатов. Вернитесь к Шагу 1 и подтвердите хотя бы одного.
+          </div>
+        );
+      }
+
+      return (
+        <div>
+          {/* AS-IS quote (also shown in step 2 for context) */}
+          <div className="asis-block">
+            <div className="asis-label">AS-IS из документа обследования</div>
+            <div className="asis-text">{chunkData.asis_text}</div>
+          </div>
+
+          {confirmedIds.map(cid => {
+            const candidate = candidates[cid];
+            const expansion = candidate.expansion || {};
+            const expIds = Object.keys(expansion);
+            const expKey = `${chunkId}__${cid}`;
+            const expDecisions = decisions.expansion[expKey] || {};
+
+            // Separate by direction
+            const needItems = expIds.filter(eid => expansion[eid].direction === 'need');
+            const contextItems = expIds.filter(eid => expansion[eid].direction === 'context');
+
+            const renderExpItem = (eid) => {
+              const item = expansion[eid];
+              const d = expDecisions[eid] || DECISION.UNDECIDED;
+              const dirMeta = DIRECTION_META[item.direction] || { label: '?', cls: '' };
+
+              return (
+                <div key={eid} className={`expansion-item state-${d}`}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{eid}</span>
+                      <span className={`dir-badge ${dirMeta.cls}`} style={{ marginLeft: 8 }}>
+                        {dirMeta.label}
+                      </span>
+                    </div>
+                    <div className="decision-group">
+                      <button
+                        className={`decision-btn ${d === DECISION.CONFIRMED ? 'active-confirmed' : ''}`}
+                        onClick={() => setExpansionDecision(cid, eid, d === DECISION.CONFIRMED ? DECISION.UNDECIDED : DECISION.CONFIRMED)}
+                        title="Подтвердить"
+                      >✓</button>
+                      <button
+                        className={`decision-btn ${d === DECISION.EXCLUDED ? 'active-excluded' : ''}`}
+                        onClick={() => setExpansionDecision(cid, eid, d === DECISION.EXCLUDED ? DECISION.UNDECIDED : DECISION.EXCLUDED)}
+                        title="Исключить"
+                      >✗</button>
+                    </div>
+                  </div>
+                  <div className="candidate-path" style={{ marginTop: 4 }}>{item.bank_path}</div>
+                  <div className="candidate-text" style={{ fontSize: 13 }}>{item.bank_text}</div>
+                  {item.llm_comment && (
+                    <div className="llm-comment" style={{ fontSize: 12 }}>💬 {item.llm_comment}</div>
+                  )}
+                </div>
+              );
+            };
+
+            return (
+              <div key={cid} className="expansion-group">
+                <div className="expansion-group-header">
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{cid}</span>
+                  {' — '}
+                  <span style={{ color: 'var(--text-secondary)' }}>{candidate.bank_text?.substring(0, 80)}...</span>
+                </div>
+
+                {/* "Need" items */}
+                {needItems.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: 'var(--dir-need)', fontWeight: 600, marginBottom: 6 }}>
+                      НУЖЕН ({needItems.length})
+                    </div>
+                    {needItems.map(renderExpItem)}
+                  </div>
+                )}
+
+                {/* "Context" items */}
+                {contextItems.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--dir-context)', fontWeight: 600, marginBottom: 6 }}>
+                      КОНТЕКСТ ({contextItems.length})
+                    </div>
+                    {contextItems.map(renderExpItem)}
+                  </div>
+                )}
+
+                {expIds.length === 0 && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13, fontStyle: 'italic' }}>
+                    Раскрытие отсутствует для этого кандидата.
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // COMPONENT: ChunkFlow
+    // 3-step flow for a single chunk (Step 1 → Step 2 → Done)
+    // ============================================================
+    function ChunkFlow({ data, decisions, setDecisions, subprocessId, chunkId, onBack }) {
+      // step: 1 = candidates, 2 = expansion
+      const [step, setStep] = React.useState(1);
+
+      const sp = data.subprocesses[subprocessId];
+      const chunk = sp.chunks[chunkId];
+      const chunkDecisions = decisions.candidates[chunkId] || {};
+      const candidateIds = Object.keys(chunk.candidates);
+
+      // Check if all candidates decided (for enabling Step 2 button)
+      const allDecided = candidateIds.every(cid => {
+        const d = chunkDecisions[cid];
+        return d === DECISION.CONFIRMED || d === DECISION.EXCLUDED;
+      });
+
+      const confirmedCount = candidateIds.filter(cid => chunkDecisions[cid] === DECISION.CONFIRMED).length;
+
+      // Check if step 2 is complete
+      const step2Complete = (() => {
+        const confirmed = candidateIds.filter(cid => chunkDecisions[cid] === DECISION.CONFIRMED);
+        return confirmed.every(cid => {
+          const expansion = chunk.candidates[cid].expansion || {};
+          const expIds = Object.keys(expansion);
+          if (expIds.length === 0) return true;
+          const expKey = `${chunkId}__${cid}`;
+          const expDec = decisions.expansion[expKey] || {};
+          return expIds.every(eid => {
+            const d = expDec[eid];
+            return d === DECISION.CONFIRMED || d === DECISION.EXCLUDED;
+          });
+        });
+      })();
+
+      return (
+        <div>
+          {/* Breadcrumb */}
+          <div className="breadcrumb">
+            <span className="breadcrumb-item" onClick={() => onBack('subprocesses')}>Подпроцессы</span>
+            <span className="breadcrumb-sep">›</span>
+            <span className="breadcrumb-item" onClick={() => onBack('chunks')}>{subprocessId}</span>
+            <span className="breadcrumb-sep">›</span>
+            <span className="breadcrumb-current">{chunkId} {chunk.title}</span>
+          </div>
+
+          <div className="section-title">{chunkId}: {chunk.title}</div>
+          <div className="section-subtitle">
+            Тип: {chunk.type === 'step' ? 'Шаг' : 'Рекомендация'}
+          </div>
+
+          {/* Step indicator pills */}
+          <div className="step-indicator">
+            <div
+              className={`step-pill ${step === 1 ? 'active' : allDecided ? 'done' : ''}`}
+              style={{ cursor: 'pointer' }}
+              onClick={() => setStep(1)}
+            >
+              {allDecided ? '✓' : '1'} Кандидаты
+            </div>
+            <div
+              className={`step-pill ${step === 2 ? 'active' : step2Complete && allDecided ? 'done' : ''}`}
+              style={{ cursor: confirmedCount > 0 ? 'pointer' : 'default', opacity: confirmedCount > 0 ? 1 : 0.4 }}
+              onClick={() => { if (confirmedCount > 0) setStep(2); }}
+            >
+              {step2Complete && allDecided ? '✓' : '2'} Раскрытие
+            </div>
+          </div>
+
+          {/* Step content */}
+          {step === 1 && (
+            <CandidateReview
+              chunkId={chunkId}
+              chunkData={chunk}
+              decisions={decisions}
+              setDecisions={setDecisions}
+            />
+          )}
+
+          {step === 2 && (
+            <ExpansionReview
+              chunkId={chunkId}
+              chunkData={chunk}
+              decisions={decisions}
+              setDecisions={setDecisions}
+            />
+          )}
+
+          {/* Bottom action bar */}
+          <div className="action-bar">
+            <div className="action-bar-info">
+              {step === 1
+                ? `Решено ${candidateIds.filter(c => (chunkDecisions[c] || '') !== '' && chunkDecisions[c] !== DECISION.UNDECIDED).length} из ${candidateIds.length} кандидатов`
+                : `Подтверждено ${confirmedCount} кандидатов для раскрытия`
+              }
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {step === 1 && (
+                <button
+                  className="btn btn-primary"
+                  disabled={confirmedCount === 0}
+                  onClick={() => setStep(2)}
+                >
+                  Далее → Раскрытие ({confirmedCount})
+                </button>
+              )}
+              {step === 2 && (
+                <React.Fragment>
+                  <button className="btn" onClick={() => setStep(1)}>
+                    ← Назад к кандидатам
+                  </button>
+                  <button
+                    className="btn btn-success"
+                    onClick={() => onBack('chunks')}
+                  >
+                    ✓ Завершить чанк
+                  </button>
+                </React.Fragment>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // FUNCTION: generateWord
+    // Generates a .docx file from confirmed decisions using docx.js
+    // ============================================================
+    async function generateWord(data, decisions, interim = false) {
+      // docx.js exposes its API on the global `docx` object
+      const {
+        Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+        WidthType, AlignmentType, HeadingLevel, BorderStyle, ShadingType,
+        PageOrientation
+      } = docx;
+
+      // Collect all chunks that are done (or all if interim)
+      const sections = [];
+
+      Object.keys(data.subprocesses).sort().forEach(spId => {
+        const sp = data.subprocesses[spId];
+        const chunkIds = Object.keys(sp.chunks).sort();
+        const chunkParagraphs = [];
+
+        chunkIds.forEach(chunkId => {
+          const chunk = sp.chunks[chunkId];
+          const isDone = isChunkDone(chunkId, chunk, decisions);
+
+          if (!interim && !isDone) return;
+          if (interim && !decisions.candidates[chunkId]) return;
+
+          const candidateDecisions = decisions.candidates[chunkId] || {};
+          const confirmedCandidates = Object.keys(chunk.candidates)
+            .filter(cid => candidateDecisions[cid] === DECISION.CONFIRMED);
+
+          if (confirmedCandidates.length === 0) return;
+
+          // Chunk header
+          chunkParagraphs.push(
+            new Paragraph({
+              text: `${chunkId}: ${chunk.title}`,
+              heading: HeadingLevel.HEADING_3,
+              spacing: { before: 300, after: 100 },
+            })
+          );
+
+          // AS-IS text
+          chunkParagraphs.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'AS-IS: ', bold: true, size: 20 }),
+                new TextRun({ text: chunk.asis_text, italics: true, size: 20 }),
+              ],
+              spacing: { after: 200 },
+            })
+          );
+
+          // Table for each confirmed candidate
+          confirmedCandidates.forEach(cid => {
+            const cand = chunk.candidates[cid];
+            const catLabel = CATEGORY_META[cand.category]?.label || cand.category;
+
+            // Build table rows
+            const rows = [];
+
+            // Row 1: Candidate header
+            rows.push(new TableRow({
+              children: [
+                new TableCell({
+                  children: [new Paragraph({
+                    children: [
+                      new TextRun({ text: `${cid}`, bold: true, size: 22 }),
+                      new TextRun({ text: ` (${catLabel})`, size: 20, color: '666666' }),
+                    ]
+                  })],
+                  shading: { fill: 'E8F5E9', type: ShadingType.CLEAR, color: 'auto' },
+                  width: { size: 2500, type: WidthType.DXA },
+                  verticalMerge: 'restart', // span multiple rows
+                }),
+                new TableCell({
+                  children: [
+                    new Paragraph({
+                      children: [
+                        new TextRun({ text: 'Путь: ', bold: true, size: 18 }),
+                        new TextRun({ text: cand.bank_path, size: 18, color: '555555' }),
+                      ],
+                      spacing: { after: 60 },
+                    }),
+                    new Paragraph({
+                      children: [new TextRun({ text: cand.bank_text, size: 20 })],
+                      spacing: { after: 60 },
+                    }),
+                    ...(cand.llm_comment ? [new Paragraph({
+                      children: [
+                        new TextRun({ text: 'Комментарий: ', bold: true, size: 18 }),
+                        new TextRun({ text: cand.llm_comment, italics: true, size: 18 }),
+                      ],
+                    })] : []),
+                  ],
+                  width: { size: 7500, type: WidthType.DXA },
+                }),
+              ],
+            }));
+
+            // Expansion rows
+            const expKey = `${chunkId}__${cid}`;
+            const expDecisions = decisions.expansion[expKey] || {};
+            const expansion = cand.expansion || {};
+            const confirmedExp = Object.keys(expansion)
+              .filter(eid => expDecisions[eid] === DECISION.CONFIRMED);
+
+            if (confirmedExp.length > 0) {
+              rows.push(new TableRow({
+                children: [
+                  new TableCell({
+                    children: [new Paragraph({ text: '' })],
+                    verticalMerge: 'continue',
+                    width: { size: 2500, type: WidthType.DXA },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        children: [new TextRun({ text: 'Раскрытие:', bold: true, size: 20 })],
+                        spacing: { after: 80 },
+                      }),
+                      ...confirmedExp.map(eid => {
+                        const item = expansion[eid];
+                        const dirLabel = DIRECTION_META[item.direction]?.label || '';
+                        return new Paragraph({
+                          children: [
+                            new TextRun({ text: `✓ ${eid} `, bold: true, size: 18 }),
+                            new TextRun({ text: `[${dirLabel}] `, size: 18, color: '888888' }),
+                            new TextRun({ text: item.bank_path, size: 18, color: '555555' }),
+                            new TextRun({ text: `\n${item.bank_text}`, size: 18 }),
+                            ...(item.llm_comment ? [
+                              new TextRun({ text: `\nLLM: ${item.llm_comment}`, italics: true, size: 16, color: '666666' }),
+                            ] : []),
+                          ],
+                          spacing: { after: 60 },
+                        });
+                      }),
+                    ],
+                    width: { size: 7500, type: WidthType.DXA },
+                  }),
+                ],
+              }));
+            }
+
+            chunkParagraphs.push(
+              new Table({
+                rows,
+                width: { size: 10000, type: WidthType.DXA },
+              })
+            );
+
+            // Spacer after table
+            chunkParagraphs.push(new Paragraph({ text: '', spacing: { after: 200 } }));
+          });
+
+          if (chunkParagraphs.length > 0) {
+            // Add chunk paragraphs to section
+          }
+        });
+
+        if (chunkParagraphs.length > 0) {
+          // Subprocess header
+          sections.push(
+            new Paragraph({
+              text: `${spId} ${sp.title}`,
+              heading: HeadingLevel.HEADING_2,
+              spacing: { before: 400, after: 200 },
+            })
+          );
+          sections.push(...chunkParagraphs);
+        }
+      });
+
+      // Build document
+      const doc = new Document({
+        sections: [{
+          properties: {
+            page: {
+              size: {
+                orientation: PageOrientation.LANDSCAPE,
+                width: 16838,
+                height: 11906,
+              },
+              margin: { top: 720, right: 720, bottom: 720, left: 720 },
+            },
+          },
+          children: [
+            // Title page
+            new Paragraph({
+              text: 'ProcessScout AI — Функционально-технические требования',
+              heading: HeadingLevel.HEADING_1,
+              spacing: { after: 200 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: `Документ: ${data.meta?.document_title || 'БП-06'}`, size: 22 }),
+              ],
+              spacing: { after: 100 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: `Дата: ${new Date().toLocaleDateString('ru-RU')}`, size: 22 }),
+              ],
+              spacing: { after: 100 },
+            }),
+            ...(interim ? [new Paragraph({
+              children: [
+                new TextRun({ text: '⚠ ПРОМЕЖУТОЧНАЯ ВЕРСИЯ — не все чанки обработаны', bold: true, color: 'FF6600', size: 22 }),
+              ],
+              spacing: { after: 300 },
+            })] : []),
+            // Content
+            ...sections,
+          ],
+        }],
+      });
+
+      // Generate and download
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `FTT_${data.meta?.document_id || 'BP06'}_${interim ? 'interim_' : ''}${new Date().toISOString().slice(0,10)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ============================================================
+    // COMPONENT: App
+    // Main application — routing between screens
+    // ============================================================
+    function App() {
+      // Data loaded from JSON file
+      const [data, setData] = React.useState(null);
+
+      // User decisions — persisted to localStorage
+      const [decisions, setDecisions] = useLocalStorage(LS_KEY_DECISIONS, {
+        candidates: {},
+        expansion: {},
+        lastUpdated: null,
+      });
+
+      // Navigation state
+      const [nav, setNav] = React.useState({
+        screen: 'subprocesses',  // 'subprocesses' | 'chunks' | 'flow'
+        subprocess: null,
+        chunk: null,
+      });
+
+      // Settings panel visibility
+      const [showSettings, setShowSettings] = React.useState(false);
+
+      // Word generation in progress
+      const [generating, setGenerating] = React.useState(false);
+
+      /**
+       * Called when data is loaded from file or cache.
+       * Caches data in localStorage for "Continue session" feature.
+       */
+      const handleDataLoaded = (json) => {
+        setData(json);
+        try {
+          localStorage.setItem(LS_KEY_DATA, JSON.stringify(json));
+        } catch (e) {
+          console.warn('Could not cache data in localStorage:', e);
+        }
+      };
+
+      /**
+       * Loads built-in demo data for testing (subprocess 06.01).
+       */
+      const loadDemo = () => {
+        handleDataLoaded(DEMO_DATA);
+      };
+
+      /**
+       * Handles Word generation.
+       */
+      const handleGenerateWord = async (interim) => {
+        setGenerating(true);
+        try {
+          await generateWord(data, decisions, interim);
+        } catch (err) {
+          alert('Ошибка генерации Word: ' + err.message);
+          console.error(err);
+        } finally {
+          setGenerating(false);
+        }
+      };
+
+      // If no data loaded, show loader screen
+      if (!data) {
+        return <DataLoader onDataLoaded={handleDataLoaded} onLoadDemo={loadDemo} />;
+      }
+
+      // Calculate global progress for header
+      const { done: globalDone, total: globalTotal } = getGlobalProgress(data, decisions);
+      const allDone = globalDone === globalTotal && globalTotal > 0;
+
+      return (
+        <div className="app-container">
+          {/* ---- HEADER ---- */}
+          <div className="app-header">
+            <h1>
+              <span>ProcessScout</span> AI
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 12 }}>
+                {data.meta?.document_title || ''}
+              </span>
+            </h1>
+            <div className="header-actions">
+              {/* Word generation buttons */}
+              <button
+                className="btn btn-sm"
+                onClick={() => handleGenerateWord(true)}
+                disabled={generating}
+              >
+                📝 Промежуточный ФТТ
+              </button>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={() => handleGenerateWord(false)}
+                disabled={!allDone || generating}
+                title={allDone ? 'Генерировать финальный ФТТ' : `Обработано ${globalDone}/${globalTotal}`}
+              >
+                📄 Сгенерировать ФТТ
+              </button>
+
+              {/* Settings */}
+              <button className="btn btn-sm" onClick={() => setShowSettings(true)}>
+                ⚙
+              </button>
+            </div>
+          </div>
+
+          {/* ---- CONTENT ---- */}
+          <div className="app-content">
+            {nav.screen === 'subprocesses' && (
+              <SubprocessList
+                data={data}
+                decisions={decisions}
+                onSelect={(spId) => setNav({ screen: 'chunks', subprocess: spId, chunk: null })}
+              />
+            )}
+
+            {nav.screen === 'chunks' && nav.subprocess && (
+              <ChunkList
+                data={data}
+                decisions={decisions}
+                subprocessId={nav.subprocess}
+                onSelectChunk={(chunkId) => setNav({ screen: 'flow', subprocess: nav.subprocess, chunk: chunkId })}
+                onBack={() => setNav({ screen: 'subprocesses', subprocess: null, chunk: null })}
+              />
+            )}
+
+            {nav.screen === 'flow' && nav.subprocess && nav.chunk && (
+              <ChunkFlow
+                data={data}
+                decisions={decisions}
+                setDecisions={setDecisions}
+                subprocessId={nav.subprocess}
+                chunkId={nav.chunk}
+                onBack={(target) => {
+                  if (target === 'subprocesses') {
+                    setNav({ screen: 'subprocesses', subprocess: null, chunk: null });
+                  } else {
+                    setNav({ screen: 'chunks', subprocess: nav.subprocess, chunk: null });
+                  }
+                }}
+              />
+            )}
+          </div>
+
+          {/* ---- SETTINGS OVERLAY ---- */}
+          {showSettings && (
+            <SettingsPanel
+              onClose={() => setShowSettings(false)}
+              decisions={decisions}
+              setDecisions={setDecisions}
+              data={data}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // DEMO DATA
+    // Built-in test data for subprocess 06.01 (7 steps)
+    // This is a placeholder — real data comes from prepare_data.py
+    // ============================================================
+    const DEMO_DATA = {
+      meta: {
+        document_id: "BP-06",
+        document_title: "БП-06 Производство (ДЕМО)",
+        generated_at: "2026-03-30T12:00:00",
+        version: "1.0"
+      },
+      subprocesses: {
+        "06.01": {
+          title: "Планирование производства на год",
+          chunks: {
+            "06.01.01": {
+              type: "step",
+              title: "Формирование номенклатурного плана",
+              asis_text: "Формирование, согласование и утверждение годового номенклатурного плана производства товарной продукции. Выполняется ПДО совместно с ПЭО в системе MS Dynamics AX. Входные данные: портфель заказов, прогноз продаж, производственные мощности.",
+              candidates: {
+                "FB-4.7": {
+                  category: "основной",
+                  bank_path: "[4] Планирование → [4.7] Формирование директивного плана (вытягивающего, методом обратного планирования от директивной даты)",
+                  bank_text: "Формирование директивного плана (вытягивающего, методом обратного планирования от директивной даты)",
+                  llm_comment: "Формирование директивного плана напрямую связано с формированием номенклатурного плана производства. Оба процесса определяют что и когда производить.",
+                  expansion: {
+                    "FB-4.7.1": {
+                      direction: "need",
+                      bank_path: "[4.7] → [4.7.1] Формирование производственных заказов как элементов директивного плана",
+                      bank_text: "Формирование производственных заказов как элементов директивного плана",
+                      llm_comment: "Прямая детализация: номенклатурный план раскладывается в исполнимые производственные заказы."
+                    },
+                    "FB-4.7.5": {
+                      direction: "context",
+                      bank_path: "[4.7] → [4.7.5] Автоматический пересчёт директивного плана по связанным спецификациям при изменении графика узких мест",
+                      bank_text: "Автоматический пересчёт директивного плана по связанным спецификациям при изменении графика узких мест",
+                      llm_comment: "Динамическая актуализация плана при изменении ограничений — контекстно связано."
+                    },
+                    "FB-4.7.3": {
+                      direction: "need",
+                      bank_path: "[4.7] → [4.7.3] Визуализация директивного плана в виде диаграммы Ганта",
+                      bank_text: "Визуализация директивного плана в виде диаграммы Ганта",
+                      llm_comment: "Инструмент визуального контроля годового плана."
+                    }
+                  }
+                },
+                "FB-4.16": {
+                  category: "дополнительный",
+                  bank_path: "[4] Планирование → [4.16] Процедура согласования плана",
+                  bank_text: "Процедура согласования плана",
+                  llm_comment: "Согласование — часть процесса формирования номенклатурного плана. Дополнительный аспект, не основной маппинг.",
+                  expansion: {
+                    "FB-4.16.1": {
+                      direction: "need",
+                      bank_path: "[4.16] → [4.16.1] Маршрут согласования с параллельными и последовательными этапами",
+                      bank_text: "Маршрут согласования с параллельными и последовательными этапами",
+                      llm_comment: "Детализация процедуры согласования плана."
+                    }
+                  }
+                },
+                "FB-4.17.5": {
+                  category: "неочевидный",
+                  bank_path: "[4] Планирование → [4.17] Экономическая оценка → [4.17.5] Расчёт плановой себестоимости",
+                  bank_text: "Расчёт плановой себестоимости продукции на этапе планирования",
+                  llm_comment: "Неочевидная связь: при формировании номенклатурного плана может требоваться оценка себестоимости для приоритизации.",
+                  expansion: {}
+                }
+              }
+            },
+            "06.01.02": {
+              type: "step",
+              title: "Разработка сетевого графика",
+              asis_text: "Разработка сетевого графика производства на основе утверждённого номенклатурного плана. Определение последовательности операций, длительности и взаимосвязей.",
+              candidates: {
+                "FB-4.7.3": {
+                  category: "основной",
+                  bank_path: "[4] Планирование → [4.7] Формирование директивного плана → [4.7.3] Визуализация директивного плана в виде диаграммы Ганта",
+                  bank_text: "Визуализация директивного плана в виде диаграммы Ганта",
+                  llm_comment: "Сетевой график и диаграмма Ганта — инструменты визуализации плана производства.",
+                  expansion: {
+                    "FB-4.7.3.1": {
+                      direction: "need",
+                      bank_path: "[4.7.3] → [4.7.3.1] Интерактивное редактирование графика",
+                      bank_text: "Интерактивное редактирование графика с автоматическим пересчётом связанных операций",
+                      llm_comment: "Прямая функция: редактирование сетевого графика."
+                    }
+                  }
+                }
+              }
+            },
+            "06.01.03": {
+              type: "step",
+              title: "Прогнозный план загрузки мощностей",
+              asis_text: "Составление прогнозного плана загрузки производственных мощностей по участкам и оборудованию на основе сетевого графика.",
+              candidates: {
+                "FB-4.3": {
+                  category: "основной",
+                  bank_path: "[4] Планирование → [4.3] Планирование загрузки мощностей (CRP)",
+                  bank_text: "Планирование загрузки мощностей (CRP — Capacity Requirements Planning)",
+                  llm_comment: "Прямое соответствие: CRP — стандартная функция планирования загрузки мощностей.",
+                  expansion: {}
+                },
+                "FB-4.7.2": {
+                  category: "дополнительный",
+                  bank_path: "[4] Планирование → [4.7] Формирование директивного плана → [4.7.2] Учёт ограничений мощностей при планировании",
+                  bank_text: "Учёт ограничений мощностей при планировании",
+                  llm_comment: "Связь с загрузкой мощностей через ограничения директивного плана.",
+                  expansion: {}
+                },
+                "FB-4.13.2": {
+                  category: "дополнительный",
+                  bank_path: "[4] Планирование → [4.13] Балансировка → [4.13.2] Балансировка загрузки оборудования",
+                  bank_text: "Балансировка загрузки оборудования между участками",
+                  llm_comment: "Дополнительная функция оптимизации загрузки мощностей.",
+                  expansion: {}
+                }
+              }
+            },
+            "06.01.04": {
+              type: "step",
+              title: "Расчёт потребности в материалах",
+              asis_text: "Расчёт потребности в сырье и материалах на плановый период на основе номенклатурного плана и спецификаций изделий.",
+              candidates: {
+                "FB-4.6.2": {
+                  category: "основной",
+                  bank_path: "[4] Планирование → [4.6] MRP → [4.6.2] Расчёт потребности в материалах по спецификациям",
+                  bank_text: "Расчёт потребности в материалах по спецификациям изделий (BOM explosion)",
+                  llm_comment: "Прямое соответствие: MRP-расчёт потребности по BOM.",
+                  expansion: {}
+                },
+                "FB-5.5.1.1": {
+                  category: "дополнительный",
+                  bank_path: "[5] Исполнение → [5.5] Обеспечение материалами → [5.5.1] Формирование заявок → [5.5.1.1] Автоматическая генерация заявок",
+                  bank_text: "Автоматическая генерация заявок на закупку по результатам MRP",
+                  llm_comment: "Следующий шаг после расчёта потребности — формирование заявок на закупку.",
+                  expansion: {}
+                }
+              }
+            },
+            "06.01.05": {
+              type: "step",
+              title: "Формирование бюджета производства",
+              asis_text: "Формирование бюджета производства на плановый период. Калькуляция плановой себестоимости продукции, расчёт ФОТ производственного персонала.",
+              candidates: {
+                "FB-5.13.1": {
+                  category: "основной",
+                  bank_path: "[5] Исполнение → [5.13] Учёт затрат → [5.13.1] Калькуляция себестоимости по нормативам",
+                  bank_text: "Калькуляция себестоимости по нормативам (standard costing)",
+                  llm_comment: "Калькуляция плановой себестоимости — прямое соответствие.",
+                  expansion: {}
+                }
+              }
+            },
+            "06.01.06": {
+              type: "step",
+              title: "Утверждение годового плана",
+              asis_text: "Согласование и утверждение годового производственного плана у руководства. Проведение планёрок и защита плана перед директором по производству.",
+              candidates: {
+                "FB-4.10.1.2": {
+                  category: "основной",
+                  bank_path: "[4] Планирование → [4.10] Управление версиями плана → [4.10.1] Хранение версий → [4.10.1.2] Сравнение версий плана",
+                  bank_text: "Сравнение версий плана с визуализацией отличий",
+                  llm_comment: "При утверждении плана необходимо сравнивать версии для принятия решений.",
+                  expansion: {}
+                },
+                "FB-4.6.8.4": {
+                  category: "дополнительный",
+                  bank_path: "[4] Планирование → [4.6] MRP → [4.6.8] Отчётность → [4.6.8.4] Отчёт по утверждённым планам",
+                  bank_text: "Формирование отчёта по утверждённым планам для руководства",
+                  llm_comment: "Формальная фиксация утверждённого плана в системе.",
+                  expansion: {}
+                }
+              }
+            },
+            "06.01.07": {
+              type: "step",
+              title: "Мониторинг выполнения годового плана",
+              asis_text: "Ежемесячный мониторинг выполнения годового плана. Анализ отклонений факт/план, корректировка плана при необходимости.",
+              candidates: {
+                "FB-4.10.1.1": {
+                  category: "основной",
+                  bank_path: "[4] Планирование → [4.10] Управление версиями плана → [4.10.1] Хранение версий → [4.10.1.1] Фиксация базового плана (baseline)",
+                  bank_text: "Фиксация базового плана (baseline) для последующего план-факт анализа",
+                  llm_comment: "Мониторинг выполнения невозможен без фиксации baseline для сравнения факт/план.",
+                  expansion: {}
+                }
+              }
+            }
+          }
+        },
+        "06.02": {
+          title: "Формирование месячного плана",
+          chunks: {}
+        },
+        "06.03": {
+          title: "Оперативное планирование на неделю",
+          chunks: {}
+        }
+      }
+    };
+
+    // ============================================================
+    // RENDER — mount React app to #root
+    // ============================================================
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

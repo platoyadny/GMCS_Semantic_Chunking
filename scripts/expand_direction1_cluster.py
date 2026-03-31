@@ -70,7 +70,9 @@ def load_confirmed_mappings(consolidated_path):
         operation = item.get("operation", "")
         confirmed = []
         for section in item.get("sections", []):
-            if section.get("category") == "основной":
+            # Раскрытие для ВСЕХ кандидатов, не только основных
+            # Аналитик может подтвердить любого — ему нужно раскрытие
+            if section.get("category") in ("основной", "дополнительный", "неочевидный"):
                 bank_id = section["representative_id"]
                 text = section.get("representative_text", "")
                 desc = text.split("\n")[0][:100] if text else bank_id
@@ -141,8 +143,8 @@ def find_cluster_neighbors(results: list[dict], pair_id: str, bank_id: str) -> d
     })
 
     for r in results:
-        # Фильтр по pair_id
-        if r.get("chunk_meta", {}).get("pair_id") != pair_id:
+        # Фильтр по pair_id (или chunk_id для рекомендаций где pair_id="?")
+        if r.get("chunk_meta", {}).get("pair_id") != pair_id and r.get("chunk_id") != pair_id:
             continue
         if r.get("status") != "ok":
             continue

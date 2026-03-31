@@ -7,21 +7,10 @@ consolidate_recs.py — Консолидация результатов мапп
   - Нет голосования/мержа — результат берётся напрямую
   - pair_id = '?' (привязка через bp_id и chunk_id)
 
-Скрипт читает results_clustered.json, фильтрует рекомендации (chunk_type
-начинается с 'rec'), и формирует consolidated_recs.json в формате,
-совместимом с consolidated_l3.json (для expand_direction1/2 и UI).
-
 ЗАПУСК:
   python scripts/consolidate_recs.py \
     --input output/bp_06_04/mapping/results_clustered.json \
     --output output/bp_06_04/mapping/consolidated_recs.json
-
-  # Батч для нескольких подпроцессов:
-  for BP in 01 02 03 04; do
-    python scripts/consolidate_recs.py \
-      --input output/bp_06_${BP}/mapping/results_clustered.json \
-      --output output/bp_06_${BP}/mapping/consolidated_recs.json
-  done
 """
 
 import json
@@ -31,17 +20,8 @@ from pathlib import Path
 
 
 def extract_l3(bank_id: str) -> str:
-    """
-    Извлекает L3-секцию из ID банка.
-    FB-4.7.3 → 4.7.3
-    FB-4.7.1б) → 4.7.1
-    FB-4.7 → 4.7
-    """
-    # Убираем префикс FB-
     clean = bank_id.replace("FB-", "")
-    # Убираем буквенные суффиксы: а), б), в) и т.д.
     clean = re.sub(r'[а-ед]\)$', '', clean)
-    # Берём до 3 уровней
     parts = clean.split(".")
     if len(parts) >= 3:
         return f"{parts[0]}.{parts[1]}.{parts[2]}"
@@ -51,17 +31,11 @@ def extract_l3(bank_id: str) -> str:
 
 
 def consolidate_recs(input_path: str) -> list[dict]:
-    """
-    Читает results_clustered.json, извлекает рекомендации,
-    формирует список в формате consolidated_l3.
-    """
     with open(input_path, encoding="utf-8") as f:
         data = json.load(f)
 
     recs = []
-
     for r in data["results"]:
-        # Фильтруем: только рекомендации с успешным статусом
         ct = r.get("chunk_meta", {}).get("chunk_type", "")
         if not ct.startswith("rec") or r.get("status") != "ok":
             continue
@@ -69,11 +43,8 @@ def consolidate_recs(input_path: str) -> list[dict]:
         res = r["result"]
         best = res["best_document"]
         secs = res.get("secondary_documents", [])
-
-        # Формируем sections (как в consolidated_l3)
         sections = []
 
-        # PRIMARY — основной кандидат
         bid = best["id"]
         sections.append({
             "section_id": extract_l3(bid),
@@ -85,10 +56,9 @@ def consolidate_recs(input_path: str) -> list[dict]:
             "secondary_votes": 0,
             "chunk_types": [ct],
             "all_candidates_in_section": [bid],
-            "explanations": [best.get("gpt_explanation", "")],
+            "explanations": [best.get("step2_explanation", "")],
         })
 
-        # SECONDARY — дополнительные кандидаты
         for s in secs:
             sid = s["id"]
             sections.append({
@@ -101,16 +71,15 @@ def consolidate_recs(input_path: str) -> list[dict]:
                 "secondary_votes": 1,
                 "chunk_types": [ct],
                 "all_candidates_in_section": [sid],
-                "explanations": [s.get("gpt_explanation", "")],
+                "explanations": [s.get("step2_explanation", "")],
             })
 
-        # Итоговая запись для одной рекомендации
         recs.append({
-            "pair_id": r["chunk_id"],  # например BP-06.04-rec-proc-01
+            "pair_id": r["chunk_id"],
             "operation": r.get("chunk_meta", {}).get("operation",
                          r.get("chunk_meta", {}).get("text", "")),
             "bp_name": r.get("chunk_meta", {}).get("bp_name", ""),
-            "chunk_type": ct,  # rec_process или rec_automation
+            "chunk_type": ct,
             "total_unique_candidates": len(sections),
             "total_sections": len(sections),
             "summary": {
@@ -125,27 +94,19 @@ def consolidate_recs(input_path: str) -> list[dict]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Консолидация результатов маппинга для рекомендаций"
-    )
-    parser.add_argument("--input", required=True,
-                        help="Путь к results_clustered.json")
-    parser.add_argument("--output", required=True,
-                        help="Путь для consolidated_recs.json")
+    parser = argparse.ArgumentParser(description="Консолидация рекомендаций")
+    parser.add_argument("--input", required=True)
+    parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
-    # Консолидация
     recs = consolidate_recs(args.input)
-
     if not recs:
         print(f"Рекомендаций не найдено в {args.input}")
         return
 
-    # Подсчёт по типам
     rec_proc = sum(1 for r in recs if r.get("chunk_type") == "rec_process")
     rec_auto = sum(1 for r in recs if r.get("chunk_type") == "rec_automation")
 
-    # Сохранение
     output = {
         "metadata": {
             "source": "recommendations",
@@ -164,12 +125,11 @@ def main():
 
     print(f"Сохранено: {out_path}")
     print(f"  rec_process: {rec_proc}, rec_automation: {rec_auto}, всего: {len(recs)}")
-
-    # Краткая сводка
-    for r in recs[:5]:
-        print(f"  {r['pair_id']}: {r['summary']['основной'][0]} ← {r['operation'][:60]}")
-    if len(recs) > 5:
-        print(f"  ... и ещё {len(recs)-5}")
+    for r in recs[:3]:
+        expl = r['sections'][0]['explanations'][0][:80] if r['sections'][0]['explanations'][0] else '(пусто)'
+        print(f"  {r['pair_id']}: {r['summary']['основной'][0]} | LLM: {expl}")
+    if len(recs) > 3:
+        print(f"  ... и ещё {len(recs)-3}")
 
 
 if __name__ == "__main__":
