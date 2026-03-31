@@ -1,3 +1,4 @@
+# FINAL: Experiment A (top-3 from clusters>40) + Prompt fix v2 (rules 3+4)
 """
 cluster_search.py — Кластерный поиск по банку функциональности для всех ASIS-чанков.
 
@@ -413,6 +414,51 @@ def call_gpt_step1(query_text: str, cluster_docs: list[dict], cluster_rank: int,
         return {"best_id": None, "explanation": f"Ошибка парсинга: {raw}"}
 
 
+def call_gpt_step1_topn(query_text: str, cluster_docs: list[dict], cluster_rank: int, openai_key: str, n: int = 3) -> list[dict]:
+    """
+    Ступень 1 (вариант для больших кластеров): LLM выбирает top-N пунктов.
+    Возвращает список из до N результатов [{best_id, explanation}, ...].
+    """
+    from openai import OpenAI
+    oa_client = OpenAI(api_key=openai_key)
+
+    docs_text = ""
+    for i, doc in enumerate(cluster_docs, 1):
+        docs_text += f"\n--- Пункт {i} (ID: {doc['id']}) ---\n{doc['chunk_text_plain']}\n"
+
+    prompt = f"""Ты — эксперт по автоматизации производственных предприятий (PLM/ERP/APS/MES системы).
+
+ЗАДАЧА: Из списка пунктов банка функциональности выбери {n} ЛУЧШИХ, наиболее соответствующих описанному шагу бизнес-процесса. Кластер большой ({len(cluster_docs)} пунктов), поэтому нужно выбрать несколько кандидатов.
+
+ШАГ БИЗНЕС-ПРОЦЕССА:
+{query_text}
+
+ПУНКТЫ БАНКА ФУНКЦИОНАЛЬНОСТИ (кластер #{cluster_rank}):
+{docs_text}
+
+ПРАВИЛА ВЫБОРА:
+- Выбирай пункты, которые описывают ту же функцию что и шаг БП
+- Пункты имеют иерархию: родитель (например 4.7) содержит детей (4.7.1, 4.7.2). Если и родитель и ребёнок подходят — выбирай РОДИТЕЛЯ, потому что он описывает функцию целиком, а ребёнок может содержать конкретику, которая не подразумевается шагом бизнес-процесса
+- Не все пункты в списке релевантны — выбери именно те {n}, которые функционально ближе всего к шагу БП
+- Если релевантных меньше {n} — верни столько сколько есть
+
+Верни ответ строго в формате JSON (без markdown):
+{{"results": [{{"best_id": "<ID пункта>", "explanation": "<краткое объяснение на русском, 1-2 предложения>"}}, ...]}}"""
+
+    response = oa_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        response_format={"type": "json_object"},
+    )
+    raw = response.choices[0].message.content
+    try:
+        parsed = json.loads(raw)
+        return parsed.get("results", [])[:n]
+    except json.JSONDecodeError:
+        return [{"best_id": None, "explanation": f"Ошибка парсинга: {raw}"}]
+
+
 def call_gpt_step2(query_text: str, candidates: list[dict], openai_key: str) -> dict:
     """
     Ступень 2: LLM оценивает кандидатов из разных кластеров одновременно.
@@ -673,29 +719,58 @@ def process_chunk(chunk: dict, query_embedding: list[float], client, openai_key:
             key=lambda x: x["cosine_score"],
             reverse=True,
         )
+        cluster_size = cluster_stat["size"]
 
-        gpt_s1 = call_gpt_step1(query_text, cluster_docs, cluster_rank, openai_key)
-        best_id_s1 = gpt_s1.get("best_id")
+        if cluster_size > 40:
+            # Experiment A: large clusters get top-3 candidates
+            gpt_s1_list = call_gpt_step1_topn(query_text, cluster_docs, cluster_rank, openai_key, n=3)
+            for s1_item in gpt_s1_list:
+                best_id_s1 = s1_item.get("best_id")
+                best_doc_s1 = next(
+                    (d for d in cluster_docs if d["id"] == best_id_s1),
+                    None,
+                )
+                if best_doc_s1 is None:
+                    continue
 
-        best_doc_s1 = next(
-            (d for d in cluster_docs if d["id"] == best_id_s1),
-            cluster_docs[0],
-        )
+                candidate = dict(best_doc_s1)
+                candidate["_cluster_rank"] = cluster_rank
+                candidate["_source_label"] = f"кластер #{cluster_rank} (top-3)"
+                candidate["_step1_explanation"] = s1_item.get("explanation", "")
+                step1_candidates.append(candidate)
 
-        candidate = dict(best_doc_s1)
-        candidate["_cluster_rank"] = cluster_rank
-        candidate["_source_label"] = f"кластер #{cluster_rank}"
-        candidate["_step1_explanation"] = gpt_s1.get("explanation", "")
-        step1_candidates.append(candidate)
+                step1_details.append({
+                    "cluster_rank": cluster_rank,
+                    "cluster_size": cluster_size,
+                    "combined_score": cluster_stat["combined_score"],
+                    "best_id": best_doc_s1["id"],
+                    "best_cosine": best_doc_s1["cosine_score"],
+                    "explanation": s1_item.get("explanation", ""),
+                    "top_n_mode": True,
+                })
+        else:
+            gpt_s1 = call_gpt_step1(query_text, cluster_docs, cluster_rank, openai_key)
+            best_id_s1 = gpt_s1.get("best_id")
 
-        step1_details.append({
-            "cluster_rank": cluster_rank,
-            "cluster_size": cluster_stat["size"],
-            "combined_score": cluster_stat["combined_score"],
-            "best_id": best_doc_s1["id"],
-            "best_cosine": best_doc_s1["cosine_score"],
-            "explanation": gpt_s1.get("explanation", ""),
-        })
+            best_doc_s1 = next(
+                (d for d in cluster_docs if d["id"] == best_id_s1),
+                cluster_docs[0],
+            )
+
+            candidate = dict(best_doc_s1)
+            candidate["_cluster_rank"] = cluster_rank
+            candidate["_source_label"] = f"кластер #{cluster_rank}"
+            candidate["_step1_explanation"] = gpt_s1.get("explanation", "")
+            step1_candidates.append(candidate)
+
+            step1_details.append({
+                "cluster_rank": cluster_rank,
+                "cluster_size": cluster_size,
+                "combined_score": cluster_stat["combined_score"],
+                "best_id": best_doc_s1["id"],
+                "best_cosine": best_doc_s1["cosine_score"],
+                "explanation": gpt_s1.get("explanation", ""),
+            })
 
     # Добавляем qualified outliers как отдельных кандидатов
     for outlier in qualified_outliers:
