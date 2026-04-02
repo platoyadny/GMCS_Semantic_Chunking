@@ -6,4 +6,7 @@ __pycache__/
 *.xlsx
 *.docx
 *.json
-!scripts/*.py
+*.log
+.DS_Store
+.idea/
+ui-test/
