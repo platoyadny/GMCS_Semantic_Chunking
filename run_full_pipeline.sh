@@ -13,11 +13,53 @@
 set -e  # Остановиться при ошибке
 
 BANK="bank_4-5.xlsx"
+DOCS_DIR="docs"  # Папка с .docx файлами AS-IS
 
 echo "════════════════════════════════════════════════════════════════"
 echo "ProcessScout AI — Полный пайплайн"
 echo "Старт: $(date)"
 echo "════════════════════════════════════════════════════════════════"
+
+# ═══════════════════════════════════════════════════════════════════════
+# ФАЗА 0: ЧАНКИНГ (docx → chunks_3types.json) — нужен VM для индексации
+# ═══════════════════════════════════════════════════════════════════════
+# Пайплайн: chunk_asis (narr + enriched + table + rec)
+#          → create_clean (step_clean из metadata.operation)
+#          → merge (убрать step_table, оставить 3 типа + rec)
+#          → chunks_3types.json + индексация в OpenSearch
+
+echo ""
+echo "══════ ФАЗА 0: ЧАНКИНГ ══════"
+
+for BP in 01 02 03 04 05 06 07 08 09 10 11 12 13 14; do
+  OUTFILE="output/bp_06_${BP}/chunks/chunks_3types.json"
+  DOCX="${DOCS_DIR}/bp-06.${BP}.docx"
+
+  if [ -f "$OUTFILE" ]; then
+    echo "[SKIP] 06.${BP} чанкинг — уже есть: ${OUTFILE}"
+    continue
+  fi
+
+  if [ ! -f "$DOCX" ]; then
+    # Попробуем другие варианты имён
+    DOCX="${DOCS_DIR}/bp-06.docx"
+    if [ ! -f "$DOCX" ]; then
+      echo "[SKIP] 06.${BP} чанкинг — нет docx файла"
+      continue
+    fi
+  fi
+
+  echo ""
+  echo "═══ 06.${BP} чанкинг started at $(date) ═══"
+  python3 scripts/assemble_chunks.py \
+    --input "$DOCX" \
+    --output_dir "output/bp_06_${BP}/chunks"
+  echo "═══ 06.${BP} чанкинг done at $(date) ═══"
+done
+
+echo ""
+echo "══════ ФАЗА 0 ЗАВЕРШЕНА: все чанки готовы ══════"
+echo ""
 
 # ═══════════════════════════════════════════════════════════════════════
 # ФАЗА 1: МАППИНГ (cluster_search) — нужен VM + LLM
