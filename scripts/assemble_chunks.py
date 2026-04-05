@@ -77,8 +77,16 @@ def run_chunk_asis(docx_path: str, output_json: str, use_llm: bool = False) -> l
     if use_llm:
         print("  LLM-переформулировка step_enriched...")
         try:
-            from openai import OpenAI
-            client = OpenAI()
+            from dotenv import load_dotenv
+            from langchain_openai import ChatOpenAI
+            import os
+            load_dotenv()
+            client = ChatOpenAI(
+                model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+                api_key=os.environ["OPENAI_API_KEY"],
+                temperature=0.0,
+                seed=47
+            )
             chunks = enhance_enriched_with_llm(chunks, client)
         except Exception as e:
             print(f"  Ошибка LLM: {e}, используем программные формулировки")
